@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import time
 
 import sqlreduce
 
@@ -26,11 +27,20 @@ def main():
         query = args.file.read().rstrip()
 
     # reduce query
+    start = time.time()
     min_query, state = sqlreduce.run_reduce(args.database, query, True)
+    duration = time.time() - start
+    qps = len(state['seen']) / duration
 
     print()
-    print("Minimal query yielding the same error: (found on level", state['min_query_level'], ")")
+    print("Minimal query yielding the same error:")
     print(min_query)
+    print()
+    print("Found on level:", state['min_query_level'])
+    print("Seen:", len(state['seen']), "items,", sum([len(v) for v in state['seen']]), "Bytes")
+    print("Iterations:", state['called'])
+    print(f"Runtime: {duration:.3f} s, {qps:.1f} q/s")
+    #print(state)
 
 if __name__ == "__main__":
     main()
