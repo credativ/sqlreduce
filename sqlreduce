@@ -1,0 +1,36 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+
+import sqlreduce
+
+from loguru import logger
+import sys
+logger.add(sys.stderr, colorize=True, backtrace=True, diagnose=True)
+
+@logger.catch
+def main():
+    argparser = argparse.ArgumentParser(description="Reduce a SQL query to the minimal query throwing the same error")
+    argparser.add_argument("-d", "--database", type=str, default="")
+    argparser.add_argument("-f", "--file", type=argparse.FileType('r'), default=sys.stdin)
+    argparser.add_argument("query", nargs='*')
+    args = argparser.parse_args()
+
+    if (args.file != sys.stdin and args.query):
+        raise Exception("Cannot use both -f and query arguments")
+
+    if args.query:
+        query = ' '.join(args.query)
+    else:
+        query = args.file.read().rstrip()
+
+    # reduce query
+    min_query, state = sqlreduce.run_reduce(args.database, query, True)
+
+    print()
+    print("Minimal query yielding the same error: (found on level", state['min_query_level'], ")")
+    print(min_query)
+
+if __name__ == "__main__":
+    main()
