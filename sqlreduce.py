@@ -43,7 +43,7 @@ def check_connection(database):
     conn.close()
 
 def reduce_expr(node, state, level):
-    yield node
+    #yield node
     yield pglast.ast.Null()
 
     if isinstance(node, pglast.ast.BoolExpr):
@@ -69,8 +69,62 @@ def reduce_expr(node, state, level):
 
     # if it's a subselect, try that alone
     if isinstance(node, pglast.ast.SubLink):
-        e = reduce(node.subselect, state, level+1)
-        #if e == state['expected_error']: break
+        for res in reduce_expr(node.subselect, state, level): yield res
+        # TODO: loses parentheses around subquery:
+        # 'select (select foo) s' -> 'SELECT SELECT foo'
+
+    if isinstance(node, pglast.ast.SelectStmt):
+        # try executing the subselect on its own
+        e = reduce(node, state, level+1)
+        # if that worked, stop recursion
+        if e == state['expected_error']: return
+
+        if node.limitCount or node.limitOffset:
+            node2 = copy(node)
+            node2.limitCount = None
+            node2.limitOffset = None
+            for res in reduce_expr(node2, state, level+1): yield res
+
+        if node.targetList:
+            # try an empty target list first
+            node2 = copy(node)
+            node2.targetList = None
+            for res in reduce_expr(node2, state, level+1): yield res
+
+            ## if that yields the same error, stop recursion
+            #if e == state['expected_error']: return
+
+            # else take the target list apart
+            for i in range(len(node.targetList)):
+                # try without an element
+                node2 = copy(node)
+                node2.targetList = node.targetList[:i] + node.targetList[i+1:]
+                if node2.targetList == ():
+                    node2.targetList = None
+                for res in reduce_expr(node2, state, level+1): yield res
+
+                ## if we can remove the element, no need to dig further
+                #if e == state['expected_error']: break
+
+                # else reduce the expression
+                for expr in reduce_expr(node.targetList[i], state, level):
+                    node2 = copy(node)
+                    node2.targetList = node.targetList[:i] + (expr,) + node.targetList[i+1:]
+                    for res in reduce_expr(node2, state, level+1): yield res
+
+                #if node.fromClause:
+                #    reduce_from_clause(parsetree, state, level)
+
+                #if parsetree.whereClause:
+                #    parsetree2 = copy(parsetree)
+                #    parsetree2.whereClause = None
+                #    e = reduce(parsetree2, state, level+1)
+                #    if e != state['expected_error']:
+                #        for expr in reduce_expr(parsetree.whereClause, state, level):
+                #            parsetree2 = copy(parsetree)
+                #            parsetree2.whereClause = expr
+                #            e = reduce(parsetree2, state, level+1)
+
         # TODO: dig into subselect
 
     return
