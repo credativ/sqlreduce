@@ -195,6 +195,8 @@ def reduce_step(state, path):
 
     elif isinstance(node, pglast.ast.CoalesceExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
+        for arg in node.args:
+            if try_reduce(state, path, arg): return True
 
     # replace constant with NULL
     elif isinstance(node, pglast.ast.ColumnRef):
@@ -214,7 +216,8 @@ def reduce_step(state, path):
 
     elif isinstance(node, pglast.ast.FuncCall):
         if try_reduce(state, path, pglast.ast.Null()): return True
-        # TODO: more?
+        for arg in node.args:
+            if try_reduce(state, path, arg): return True
 
     # pull up join expression
     elif isinstance(node, pglast.ast.JoinExpr):

@@ -35,7 +35,7 @@ def main():
 
     print()
     print("Minimal query yielding the same error:")
-    #print(min_query)
+    print(min_query)
     print(IndentedStream()(state['parsetree']))
     print()
     print("Seen:", len(state['seen']), "items,", sum([len(v) for v in state['seen']]), "Bytes")
