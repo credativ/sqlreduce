@@ -1,6 +1,24 @@
 #!/usr/bin/python3
 
-from sqlreduce import run_reduce
+import pglast
+from sqlreduce import enumerate_paths, run_reduce
+
+def test_enumerate():
+    p = pglast.parse_sql('select 1')[0].stmt
+    assert [x for x in enumerate_paths(p)] == [[], ['targetList'], ['targetList', 0], ['targetList', 0, 'val']]
+
+    p = pglast.parse_sql('select 1, 2')[0].stmt
+    assert [x for x in enumerate_paths(p)] == [[], ['targetList'], ['targetList', 0], ['targetList', 0, 'val'], ['targetList', 1], ['targetList', 1, 'val']]
+
+    p = pglast.parse_sql('select 1, moo')[0].stmt
+    assert [x for x in enumerate_paths(p)] == [[], ['targetList'], ['targetList', 0], ['targetList', 0, 'val'], ['targetList', 1], ['targetList', 1, 'val']]
+
+    p = pglast.parse_sql('select 1 limit 1')[0].stmt
+    assert [x for x in enumerate_paths(p)] == [[], ['limitCount'], ['targetList'], ['targetList', 0], ['targetList', 0, 'val']]
+
+    p = pglast.parse_sql('select from (select 1) sub')[0].stmt
+    assert [x for x in enumerate_paths(p)] == [[], ['fromClause'],
+            ['fromClause', 0], ['fromClause', 0, 'subquery'], ['fromClause', 0, 'subquery', 'targetList'], ['fromClause', 0, 'subquery', 'targetList', 0], ['fromClause', 0, 'subquery', 'targetList', 0, 'val']]
 
 def test_select():
     # targetList
@@ -20,8 +38,12 @@ def test_select():
     res, _ = run_reduce('', 'select from pg_class, moo')
     assert res == 'SELECT FROM moo'
 
-    res, _ = run_reduce('', 'select from a, (select 1 from bar) b')
+    res, _ = run_reduce('', 'select from pg_class, (select 1 from bar) b')
     assert res == 'SELECT FROM bar'
 
+    res, _ = run_reduce('', "select foo('bla', 'bla')")
+    assert res == 'SELECT foo(NULL, NULL)'
+
 if __name__ == '__main__':
+    test_enumerate()
     test_select()

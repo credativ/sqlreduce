@@ -3,8 +3,27 @@
 import pglast
 from pglast.stream import RawStream
 import psycopg2
-from copy import copy
+from copy import copy, deepcopy
 import time
+
+def getattr_path(obj, path):
+    if path == []:
+        return obj
+    if type(path[0]) == int:
+        return getattr_path(obj[path[0]], path[1:])
+    else:
+        return getattr_path(getattr(obj, path[0]), path[1:])
+
+def setattr_path(obj, path, node):
+    if path == []:
+        return node
+    obj2 = deepcopy(obj)
+    parent = getattr_path(obj2, path[:-1])
+    if type(path[-1]) == int:
+        return setattr_path(obj2, path[:-1], parent[:path[-1]] + (node,) + parent[path[-1]+1:])
+    else:
+        setattr(parent, path[-1], node)
+    return obj2
 
 def run_query(database, query):
     while True:
@@ -42,174 +61,16 @@ def check_connection(database):
     conn.commit()
     conn.close()
 
-def reduce_expr(node, state, level):
-    #yield node
-    yield pglast.ast.Null()
+def try_reduce(state, path, node):
+    """In the currently best parse tree, replace path by given node and run query.
+    Returns True when successful."""
 
-    if isinstance(node, pglast.ast.BoolExpr):
-        for arg in node.args:
-            for res in reduce_expr(arg, state, level): yield res
+    parsetree2 = setattr_path(state['parsetree'], path, node)
 
-    if isinstance(node, pglast.ast.CaseExpr):
-        for arg in node.args:
-            for res in reduce_expr(arg.expr, state, level): yield res
-            for res in reduce_expr(arg.result, state, level): yield res
-        if node.defresult:
-            for res in reduce_expr(node.defresult, state, level): yield res
-
-    if isinstance(node, pglast.ast.FuncCall) and node.args:
-        for i in range(len(node.args)):
-            for expr in reduce_expr(node.args[i], state, level):
-                node2 = copy(node)
-                node2.args = node.args[:i] + (expr,) + node.args[i+1:]
-                yield node2
-
-    if isinstance(node, pglast.ast.ResTarget):
-        for res in reduce_expr(node.val, state, level): yield res
-
-    # if it's a subselect, try that alone
-    if isinstance(node, pglast.ast.SubLink):
-        for res in reduce_expr(node.subselect, state, level): yield res
-        # TODO: loses parentheses around subquery:
-        # 'select (select foo) s' -> 'SELECT SELECT foo'
-
-    if isinstance(node, pglast.ast.SelectStmt):
-        # try executing the subselect on its own
-        e = reduce(node, state, level+1)
-        # if that worked, stop recursion
-        if e == state['expected_error']: return
-
-        if node.limitCount or node.limitOffset:
-            node2 = copy(node)
-            node2.limitCount = None
-            node2.limitOffset = None
-            for res in reduce_expr(node2, state, level+1): yield res
-
-        if node.targetList:
-            # try an empty target list first
-            node2 = copy(node)
-            node2.targetList = None
-            for res in reduce_expr(node2, state, level+1): yield res
-
-            ## if that yields the same error, stop recursion
-            #if e == state['expected_error']: return
-
-            # else take the target list apart
-            for i in range(len(node.targetList)):
-                # try without an element
-                node2 = copy(node)
-                node2.targetList = node.targetList[:i] + node.targetList[i+1:]
-                if node2.targetList == ():
-                    node2.targetList = None
-                for res in reduce_expr(node2, state, level+1): yield res
-
-                ## if we can remove the element, no need to dig further
-                #if e == state['expected_error']: break
-
-                # else reduce the expression
-                for expr in reduce_expr(node.targetList[i], state, level):
-                    node2 = copy(node)
-                    node2.targetList = node.targetList[:i] + (expr,) + node.targetList[i+1:]
-                    for res in reduce_expr(node2, state, level+1): yield res
-
-                #if node.fromClause:
-                #    reduce_from_clause(parsetree, state, level)
-
-                #if parsetree.whereClause:
-                #    parsetree2 = copy(parsetree)
-                #    parsetree2.whereClause = None
-                #    e = reduce(parsetree2, state, level+1)
-                #    if e != state['expected_error']:
-                #        for expr in reduce_expr(parsetree.whereClause, state, level):
-                #            parsetree2 = copy(parsetree)
-                #            parsetree2.whereClause = expr
-                #            e = reduce(parsetree2, state, level+1)
-
-        # TODO: dig into subselect
-
-    return
-
-def reduce_from_expr(node, state, level):
-    yield node
-    # TODO: yield 'SELECT NULL' ?
-
-    if isinstance(node, pglast.ast.JoinExpr):
-        for res in reduce_from_expr(node.larg, state, level): yield res
-        for res in reduce_from_expr(node.rarg, state, level): yield res
-
-    # if it's a subselect, try that alone
-    if isinstance(node, pglast.ast.RangeSubselect):
-        e = reduce(node.subquery, state, level+1)
-        #if e == state['expected_error']: break
-        # TODO: dig into subselect
-
-    return
-
-def reduce_target_list(parsetree, state, level):
-    # try an empty target list first
-    parsetree2 = copy(parsetree)
-    parsetree2.targetList = None
-    e = reduce(parsetree2, state, level+1)
-
-    # if that yields the same error, stop recursion
-    if e == state['expected_error']: return
-
-    # else take the target list apart
-    for i in range(len(parsetree.targetList)):
-        # try without an element
-        parsetree2 = copy(parsetree)
-        parsetree2.targetList = parsetree.targetList[:i] + parsetree.targetList[i+1:]
-        if parsetree2.targetList == ():
-            parsetree2.targetList = None
-        e = reduce(parsetree2, state, level+1)
-
-        # if we can remove the element, no need to dig further
-        if e == state['expected_error']: break
-
-        # else reduce the expression
-        for node in reduce_expr(parsetree.targetList[i], state, level):
-            parsetree2 = copy(parsetree)
-            parsetree2.targetList = parsetree.targetList[:i] + (node,) + parsetree.targetList[i+1:]
-            reduce(parsetree2, state, level+1)
-
-def reduce_from_clause(parsetree, state, level):
-    # try an empty from clause first
-    parsetree2 = copy(parsetree)
-    parsetree2.fromClause = None
-    e = reduce(parsetree2, state, level+1)
-
-    # if that yields the same error, stop recursion
-    if e == state['expected_error']: return
-
-    # else take the from clause apart
-    for i in range(len(parsetree.fromClause)):
-
-        # try without an element
-        parsetree2 = copy(parsetree)
-        parsetree2.fromClause = parsetree.fromClause[:i] + parsetree.fromClause[i+1:]
-        if parsetree2.fromClause == ():
-            parsetree2.fromClause = None
-        e = reduce(parsetree2, state, level+1)
-
-        # if we can remove the element, stop
-        if e == state['expected_error']: break
-
-        # else reduce the expression
-        for node in reduce_from_expr(parsetree.fromClause[i], state, level):
-            parsetree2 = copy(parsetree)
-            parsetree2.fromClause = parsetree.fromClause[:i] + (node,) + parsetree.fromClause[i+1:]
-            reduce(parsetree2, state, level+1)
-
-            #for node in reduce_select(parsetree.fromClause[i]):
-            #    parsetree2 = copy(parsetree)
-            #    parsetree2.fromClause = parsetree.fromClause[:i] + (node,) + parsetree.fromClause[i+1:]
-            #    reduce(parsetree2, state, level+1)
-
-def reduce(parsetree, state, level):
-    query = RawStream()(parsetree)
+    query = RawStream()(parsetree2)
     state['called'] += 1
     if query in state['seen']:
-        return
+        return False
     state['seen'].add(query)
     if state['verbose']:
         print(query, end='')
@@ -219,77 +80,195 @@ def reduce(parsetree, state, level):
     if error != state['expected_error']:
         if state['verbose']:
             print(" ✘", error)
-        return error
+        return False
+
+    # found expected result
+    if state['verbose']:
+        print(" ✔")
+
+    #if len(query) < state['min_query_len']:
+    state['parsetree'] = parsetree2
+    state['min_query'] = query
+    state['min_query_len'] = len(query)
+
+    return True
+
+def enumerate_paths(node, path=[]):
+    """For a node, recursively enumerate all paths that are reduction targets"""
+
+    assert node != None
+    yield path
+
+    if isinstance(node, tuple):
+        for i in range(len(node)):
+            for p in enumerate_paths(node[i], path+[i]): yield p
+
+    elif isinstance(node, pglast.ast.A_Const):
+        pass
+
+    elif isinstance(node, pglast.ast.A_Expr):
+        if node.lexpr:
+            for p in enumerate_paths(node.lexpr, path+['lexpr']): yield p
+        if node.rexpr:
+            for p in enumerate_paths(node.rexpr, path+['rexpr']): yield p
+
+    elif isinstance(node, pglast.ast.CaseExpr):
+        if node.args:
+            for p in enumerate_paths(node.args, path+['args']): yield p
+        if node.defresult:
+            for p in enumerate_paths(node.defresult, path+['defresult']): yield p
+
+    elif isinstance(node, pglast.ast.CoalesceExpr):
+        for p in enumerate_paths(node.args, path+['args']): yield p
+
+    elif isinstance(node, pglast.ast.ColumnRef):
+        pass
+
+    elif isinstance(node, pglast.ast.FuncCall) and node.args:
+        # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
+        for i in range(len(node.args)):
+            for p in enumerate_paths(node.args[i], path+['args', i]): yield p
+
+    elif isinstance(node, pglast.ast.Null):
+        pass
+
+    elif isinstance(node, pglast.ast.RangeSubselect):
+        for p in enumerate_paths(node.subquery, path+['subquery']): yield p
+
+    elif isinstance(node, pglast.ast.RangeVar):
+        pass
+
+    elif isinstance(node, pglast.ast.ResTarget):
+        for p in enumerate_paths(node.val, path+['val']): yield p
+
+    elif isinstance(node, pglast.ast.SelectStmt):
+        if node.limitCount:
+            for p in enumerate_paths(node.limitCount, path+['limitCount']): yield p
+        if node.targetList:
+            #yield path+['targetList']
+            for p in enumerate_paths(node.targetList, path+['targetList']): yield p
+        if node.fromClause:
+            #yield path+['fromClause']
+            for p in enumerate_paths(node.fromClause, path+['fromClause']): yield p
+        if node.whereClause:
+            #yield path+['whereClause']
+            for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
+
+    elif isinstance(node, pglast.ast.SubLink):
+        for p in enumerate_paths(node.subselect, path+['subselect']): yield p
+
+    elif isinstance(node, pglast.ast.TypeCast):
+        for p in enumerate_paths(node.arg, path+['arg']): yield p
+
     else:
-        # found expected result
-        if state['verbose']:
-            print(" ✔")
+        raise Exception("enumerate_paths: don't know what to do with", path, node)
 
-    if len(query) < state['min_query_len']:
-        state['min_query'] = query
-        state['min_query_len'] = len(query)
-        state['min_query_level'] = level
+def reduce_step(state, path):
+    """Given a parse tree and a path, try to reduce the node at that path"""
 
-    # SELECT
-    if isinstance(parsetree, pglast.ast.SelectStmt):
+    node = getattr_path(state['parsetree'], path)
+    if False:
+        pass
 
-        if parsetree.limitCount or parsetree.limitOffset:
-            parsetree2 = copy(parsetree)
-            parsetree2.limitCount = None
-            parsetree2.limitOffset = None
-            e = reduce(parsetree2, state, level+1)
-            if e == state['expected_error']: return error
+    if isinstance(node, tuple):
+        # try removing the tuple entirely unless it's a CoalesceExpr which doesn't like that
+        # TODO: move CoalesceExpr to a better place
+        if not isinstance(getattr_path(state['parsetree'], path[:-1]), pglast.ast.CoalesceExpr):
+            if try_reduce(state, path, None): return True
 
-        if parsetree.targetList:
-            reduce_target_list(parsetree, state, level)
+        # try removing one tuple element
+        if len(node) > 1:
+            for i in range(len(node)):
+                if try_reduce(state, path, node[:i] + node[i+1:]): return True
 
-        if parsetree.fromClause:
-            reduce_from_clause(parsetree, state, level)
+    # replace constant with NULL
+    elif isinstance(node, pglast.ast.A_Const):
+        if try_reduce(state, path, pglast.ast.Null()): return True
 
-        if parsetree.whereClause:
-            parsetree2 = copy(parsetree)
-            parsetree2.whereClause = None
-            e = reduce(parsetree2, state, level+1)
-            if e != state['expected_error']:
-                for expr in reduce_expr(parsetree.whereClause, state, level):
-                    parsetree2 = copy(parsetree)
-                    parsetree2.whereClause = expr
-                    e = reduce(parsetree2, state, level+1)
+    # replace expression with NULL
+    elif isinstance(node, pglast.ast.A_Expr):
+        if try_reduce(state, path, pglast.ast.Null()): return True
+        if node.lexpr:
+            if try_reduce(state, path, node.lexpr): return True
+        if node.rexpr:
+            if try_reduce(state, path, node.rexpr): return True
 
-        #if parsetree.group_clause:
-        #    for i in range(len(parsetree.group_clause)):
-        #        parsetree2 = copy(parsetree)
-        #        parsetree2.group_clause = parsetree.group_clause[:i] + parsetree.group_clause[i+1:]
-        #        reduce(parsetree2, state, level+1)
+    elif isinstance(node, pglast.ast.CoalesceExpr):
+        if try_reduce(state, path, pglast.ast.Null()): return True
 
-        #if parsetree.having_clause:
-        #    parsetree2 = copy(parsetree)
-        #    parsetree2.having_clause = None
-        #    reduce(parsetree2, state, level+1)
+    # replace constant with NULL
+    elif isinstance(node, pglast.ast.ColumnRef):
+        if try_reduce(state, path, pglast.ast.Null()): return True
 
-        #if parsetree.limit_count:
-        #    parsetree2 = copy(parsetree)
-        #    parsetree2.limit_count = None
-        #    reduce(parsetree2, state, level+1)
+    elif isinstance(node, pglast.ast.BoolExpr):
+        for arg in node.args:
+            if try_reduce(state, path, arg): return True
 
-        #if parsetree.limit_offset:
-        #    parsetree2 = copy(parsetree)
-        #    parsetree2.limit_offset = None
-        #    reduce(parsetree2, state, level+1)
+    elif isinstance(node, pglast.ast.CaseExpr):
+        if try_reduce(state, path, pglast.ast.Null()): return True
+        for arg in node.args:
+            if try_reduce(state, path, arg.expr): return True
+            if try_reduce(state, path, arg.result): return True
+        if node.defresult:
+            if try_reduce(state, path, node.defresult): return True
 
-    # INSERT
-    #elif isinstance(parsetree, psqlparse.nodes.parsenodes.InsertStmt):
-    #    # try the query part only
-    #    reduce(parsetree.select_stmt, state, level+1)
+    elif isinstance(node, pglast.ast.FuncCall):
+        if try_reduce(state, path, pglast.ast.Null()): return True
+        # TODO: more?
 
-    #    # try INSERT with dummy query
-    #    parsetree2 = copy(parsetree)
-    #    parsetree2.select_stmt = psqlparse.nodes.parsenodes.SelectStmt(dict())
-    #    reduce(parsetree2, state, level+1)
+    # pull up join expression
+    elif isinstance(node, pglast.ast.JoinExpr):
+        if try_reduce(state, path, node.larg): return True
+        if try_reduce(state, path, node.rarg): return True
 
-    return error
+    elif isinstance(node, pglast.ast.Null):
+        pass
+
+    # run subselect isolated
+    elif isinstance(node, pglast.ast.RangeSubselect):
+        if try_reduce(state, [], node.subquery): return True
+
+    elif isinstance(node, pglast.ast.RangeVar):
+        pass # no need to simplify table, we try removing altogether it elsewhere
+
+    # select foo as bar -> select foo
+    elif isinstance(node, pglast.ast.ResTarget):
+        if node.name:
+            if try_reduce(state, path, node.val): return True
+
+    # select limit foo -> select
+    elif isinstance(node, pglast.ast.SelectStmt):
+        if node.limitCount:
+            if try_reduce(state, path+['limitCount'], None): return True
+        if node.limitOffset:
+            if try_reduce(state, path+['limitOffset'], None): return True
+
+    elif isinstance(node, pglast.ast.SubLink):
+        pass
+
+    # case(foo as bar) -> foo
+    elif isinstance(node, pglast.ast.TypeCast):
+        if try_reduce(state, path, node.arg): return True
+
+    else:
+        raise Exception("reduce_step: don't know what to do with", path, node)
+
+def reduce_loop(state):
+    """Try running reduce steps until no reduction is found"""
+
+    found = True
+    while found:
+        found = False
+
+        # enumerate all places that might be reduced, and try running a step on them
+        for path in enumerate_paths(state['parsetree']):
+            if reduce_step(state, path):
+                found = True
+                break
 
 def run_reduce(database, query, verbose=False):
+    """Set up state object for running reduce steps"""
+
     # parse query
     parsed_query = pglast.parse_sql(query)
     assert len(parsed_query) == 1
@@ -315,12 +294,12 @@ def run_reduce(database, query, verbose=False):
             'expected_error': expected_error,
             'min_query': regenerated_query,
             'min_query_len': len(regenerated_query),
-            'min_query_level': 0,
+            'parsetree': parsetree.stmt,
             'seen': set(),
             'verbose': verbose,
             }
 
-    reduce(parsetree.stmt, state, 0)
+    reduce_loop(state)
 
     return state['min_query'], state
 

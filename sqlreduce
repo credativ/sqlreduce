@@ -4,6 +4,7 @@ import argparse
 import sys
 import time
 
+from pglast.stream import IndentedStream
 import sqlreduce
 
 from loguru import logger
@@ -34,9 +35,9 @@ def main():
 
     print()
     print("Minimal query yielding the same error:")
-    print(min_query)
+    #print(min_query)
+    print(IndentedStream()(state['parsetree']))
     print()
-    print("Found on level:", state['min_query_level'])
     print("Seen:", len(state['seen']), "items,", sum([len(v) for v in state['seen']]), "Bytes")
     print("Iterations:", state['called'])
     print(f"Runtime: {duration:.3f} s, {qps:.1f} q/s")
