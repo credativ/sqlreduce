@@ -124,16 +124,42 @@ def enumerate_paths(node, path=[]):
     elif isinstance(node, pglast.ast.ColumnRef):
         pass
 
+    elif isinstance(node, pglast.ast.CommonTableExpr):
+        for p in enumerate_paths(node.ctequery, path+['ctequery']): yield p
+
+    elif isinstance(node, pglast.ast.DeleteStmt):
+        if node.whereClause:
+            for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
+        if node.usingClause:
+            for p in enumerate_paths(node.usingClause, path+['usingClause']): yield p
+        if node.returningList:
+            for p in enumerate_paths(node.returningList, path+['returningList']): yield p
+
     elif isinstance(node, pglast.ast.FuncCall) and node.args:
         # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
         for i in range(len(node.args)):
             for p in enumerate_paths(node.args[i], path+['args', i]): yield p
 
+    elif isinstance(node, pglast.ast.InsertStmt):
+        if node.selectStmt:
+            for p in enumerate_paths(node.selectStmt, path+['selectStmt']): yield p
+
+    elif isinstance(node, pglast.ast.JoinExpr):
+        for p in enumerate_paths(node.larg, path+['larg']): yield p
+        for p in enumerate_paths(node.rarg, path+['rarg']): yield p
+        for p in enumerate_paths(node.quals, path+['quals']): yield p
+
     elif isinstance(node, pglast.ast.Null):
         pass
 
+    elif isinstance(node, pglast.ast.NullTest):
+        for p in enumerate_paths(node.arg, path+['arg']): yield p
+
     elif isinstance(node, pglast.ast.RangeSubselect):
         for p in enumerate_paths(node.subquery, path+['subquery']): yield p
+
+    elif isinstance(node, pglast.ast.RangeTableSample):
+        for p in enumerate_paths(node.relation, path+['relation']): yield p
 
     elif isinstance(node, pglast.ast.RangeVar):
         pass
@@ -145,20 +171,29 @@ def enumerate_paths(node, path=[]):
         if node.limitCount:
             for p in enumerate_paths(node.limitCount, path+['limitCount']): yield p
         if node.targetList:
-            #yield path+['targetList']
             for p in enumerate_paths(node.targetList, path+['targetList']): yield p
+        if node.valuesLists:
+            for p in enumerate_paths(node.valuesLists, path+['valuesLists']): yield p
         if node.fromClause:
-            #yield path+['fromClause']
             for p in enumerate_paths(node.fromClause, path+['fromClause']): yield p
         if node.whereClause:
-            #yield path+['whereClause']
             for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
+        if node.withClause:
+            for p in enumerate_paths(node.withClause, path+['withClause']): yield p
+        if node.larg:
+            for p in enumerate_paths(node.larg, path+['larg']): yield p
+        if node.rarg:
+            for p in enumerate_paths(node.rarg, path+['rarg']): yield p
 
     elif isinstance(node, pglast.ast.SubLink):
         for p in enumerate_paths(node.subselect, path+['subselect']): yield p
 
     elif isinstance(node, pglast.ast.TypeCast):
         for p in enumerate_paths(node.arg, path+['arg']): yield p
+
+    elif isinstance(node, pglast.ast.WithClause):
+        for i in range(len(node.ctes)):
+            for p in enumerate_paths(node.ctes[i], path+['ctes', i]): yield p
 
     else:
         raise Exception("enumerate_paths: don't know what to do with", path, node)
@@ -172,8 +207,10 @@ def reduce_step(state, path):
 
     if isinstance(node, tuple):
         # try removing the tuple entirely unless it's a CoalesceExpr which doesn't like that
+        # also don't strip the inner layer of a valuesLists(tuple(tuple()))
         # TODO: move CoalesceExpr to a better place
-        if not isinstance(getattr_path(state['parsetree'], path[:-1]), pglast.ast.CoalesceExpr):
+        parent = getattr_path(state['parsetree'], path[:-1])
+        if not isinstance(parent, pglast.ast.CoalesceExpr) and not isinstance(parent, tuple):
             if try_reduce(state, path, None): return True
 
         # try removing one tuple element
@@ -202,6 +239,9 @@ def reduce_step(state, path):
     elif isinstance(node, pglast.ast.ColumnRef):
         if try_reduce(state, path, pglast.ast.Null()): return True
 
+    elif isinstance(node, pglast.ast.CommonTableExpr):
+        if try_reduce(state, [], node.ctequery): return True
+
     elif isinstance(node, pglast.ast.BoolExpr):
         for arg in node.args:
             if try_reduce(state, path, arg): return True
@@ -214,22 +254,42 @@ def reduce_step(state, path):
         if node.defresult:
             if try_reduce(state, path, node.defresult): return True
 
+    elif isinstance(node, pglast.ast.DeleteStmt):
+        if node.whereClause:
+            if try_reduce(state, path+['whereClause'], None): return True
+        if node.usingClause:
+            if try_reduce(state, path+['usingClause'], None): return True
+        if node.returningList:
+            if try_reduce(state, path+['returningList'], None): return True
+
     elif isinstance(node, pglast.ast.FuncCall):
         if try_reduce(state, path, pglast.ast.Null()): return True
         for arg in node.args:
             if try_reduce(state, path, arg): return True
 
+    # insert select -> select
+    elif isinstance(node, pglast.ast.InsertStmt):
+        if node.selectStmt:
+            if try_reduce(state, [], node.selectStmt): return True
+
     # pull up join expression
     elif isinstance(node, pglast.ast.JoinExpr):
         if try_reduce(state, path, node.larg): return True
         if try_reduce(state, path, node.rarg): return True
+        # TODO: pull up quals?
 
     elif isinstance(node, pglast.ast.Null):
         pass
 
+    elif isinstance(node, pglast.ast.NullTest):
+        if try_reduce(state, path, node.arg): return True
+
     # run subselect isolated
     elif isinstance(node, pglast.ast.RangeSubselect):
         if try_reduce(state, [], node.subquery): return True
+
+    elif isinstance(node, pglast.ast.RangeTableSample):
+        if try_reduce(state, path, node.relation): return True
 
     elif isinstance(node, pglast.ast.RangeVar):
         pass # no need to simplify table, we try removing altogether it elsewhere
@@ -245,13 +305,28 @@ def reduce_step(state, path):
             if try_reduce(state, path+['limitCount'], None): return True
         if node.limitOffset:
             if try_reduce(state, path+['limitOffset'], None): return True
+        if node.whereClause:
+            if try_reduce(state, path+['whereClause'], None): return True
+        if node.valuesLists:
+            if try_reduce(state, path+['valuesLists'], None): return True
+        if node.withClause:
+            if try_reduce(state, path+['withClause'], None): return True
+        # union/except have larg/rarg, pull up
+        if node.larg:
+            if try_reduce(state, [], node.larg): return True
+        if node.rarg:
+            if try_reduce(state, [], node.rarg): return True
 
+    # try (subquery) and exists(select) standalone
     elif isinstance(node, pglast.ast.SubLink):
-        pass
+        if try_reduce(state, [], node.subselect): return True
 
     # case(foo as bar) -> foo
     elif isinstance(node, pglast.ast.TypeCast):
         if try_reduce(state, path, node.arg): return True
+
+    elif isinstance(node, pglast.ast.WithClause):
+        pass
 
     else:
         raise Exception("reduce_step: don't know what to do with", path, node)
@@ -285,7 +360,7 @@ def run_reduce(database, query, verbose=False):
     if verbose:
         print("Input query:", query)
         print("Regenerated:", regenerated_query)
-        print("Query returns:", expected_error)
+        print("Query returns: ✔", expected_error)
         print()
 
     regenerated_query_error = run_query(database, regenerated_query)
