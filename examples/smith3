@@ -1,0 +1,29 @@
+drop table if exists fkpart3_pk5 cascade;
+drop table if exists inet_tbl;
+
+
+create table fkpart3_pk5 (
+    a integer not null primary key
+)
+partition by range (a);
+
+
+create table fkpart3_pk51 partition of fkpart3_pk5
+	for values from (4000) to (4500);
+
+
+create table inet_tbl (
+    c cidr,
+    i inet
+);
+
+
+select
+    1 as c0
+from
+	(select null::integer as c9,
+	        ref_0.a as c24
+	   from fkpart3_pk5 as ref_0
+      	) as subq_0
+      	right join public.inet_tbl as sample_0 on (cast(null as cidr) = c)
+where subq_0.c9 <= subq_0.c24

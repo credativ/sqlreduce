@@ -1,0 +1,111 @@
+select  
+	  cast(coalesce(pg_catalog.pg_is_wal_replay_paused(),
+	    true) as bool) as c0, 
+	  subq_0.c0 as c1, 
+	  sample_0.admin_option as c2, 
+	  sample_0.admin_option as c3, 
+	  cast(coalesce(subq_0.c0,
+	    subq_0.c2) as sql_identifier) as c4, 
+	  subq_1.c2 as c5, 
+	  pg_catalog.pg_stat_get_snapshot_timestamp() as c6, 
+	  36 as c7, 
+	  subq_1.c0 as c8, 
+	  ref_0.datacl as c9
+	from 
+	  pg_catalog.pg_auth_members as sample_0 tablesample system (7) 
+	      inner join pg_catalog.pg_database as ref_0
+	        right join (select  
+	              ref_1.table_schema as c0, 
+	              ref_1.dependent_column as c1, 
+	              ref_1.dependent_column as c2, 
+	              ref_1.table_name as c3
+	            from 
+	              information_schema.column_column_usage as ref_1
+	            where true
+	            limit 136) as subq_0
+	        on (ref_0.datconnlimit > ref_0.encoding)
+	      on (cast(null as money) > cast(null as money))
+	    inner join (select  
+	          sample_1.relam as c0, 
+	          sample_1.relnamespace as c1, 
+	          sample_1.relallvisible as c2
+	        from 
+	          pg_catalog.pg_class as sample_1 tablesample system (8.2) 
+	        where cast(null as timetz) <= case when cast(null as lseg) <@ cast(null as line) then cast(null as timetz) else cast(null as timetz) end
+	            
+	        limit 53) as subq_1
+	    on (pg_catalog.pg_control_init() is not NULL)
+	where cast(null as record) <> cast(coalesce(public.unit_accum(
+	      cast(case when EXISTS (
+	          select distinct 
+	              ref_0.datallowconn as c0, 
+	              subq_1.c1 as c1, 
+	              sample_0.roleid as c2, 
+	              (select action_order from information_schema.triggers limit 1 offset 89)
+	                 as c3, 
+	              sample_0.grantor as c4, 
+	              sample_2.conname as c5, 
+	              46 as c6, 
+	              sample_0.grantor as c7, 
+	              ref_0.dattablespace as c8, 
+	              (select oprcode from pg_catalog.pg_operator limit 1 offset 1)
+	                 as c9, 
+	              subq_0.c1 as c10, 
+	              sample_0.roleid as c11, 
+	              sample_2.condefault as c12
+	            from 
+	              pg_catalog.pg_conversion as sample_2 tablesample bernoulli (7.4) 
+	            where (cast(null as anymultirange) > cast(null as anymultirange)) 
+	              or (((select pg_catalog.max(enumsortorder) from pg_catalog.pg_enum)
+	                     = cast(null as float8)) 
+	                and ((select stanullfrac from pg_catalog.pg_statistic limit 1 offset 1)
+	                     < cast(null as float8)))) then public.unit_accum(
+	          cast(cast(null as unit_accum_t) as unit_accum_t),
+	          cast(cast(null as unit) as unit)) else public.unit_accum(
+	          cast(cast(null as unit_accum_t) as unit_accum_t),
+	          cast(cast(null as unit) as unit)) end
+	         as unit_accum_t),
+	      cast(case when cast(null as polygon) >> case when EXISTS (
+	              select  
+	                  (select catalog_name from information_schema.information_schema_catalog_name limit 1 offset 2)
+	                     as c0, 
+	                  sample_3.opcmethod as c1, 
+	                  subq_0.c1 as c2
+	                from 
+	                  pg_catalog.pg_opclass as sample_3 tablesample system (6.4) ,
+	                  lateral (select  
+	                        ref_2.idx_scan as c0
+	                      from 
+	                        pg_catalog.pg_stat_xact_sys_tables as ref_2
+	                      where (select reltuples from pg_catalog.pg_class limit 1 offset 6)
+	                           >= (select stanullfrac from pg_catalog.pg_statistic limit 1 offset 6)
+	                          ) as subq_2
+	                where (cast(null as varbit) > cast(null as varbit)) 
+	                  and (cast(null as money) > cast(null as money))) then cast(null as polygon) else cast(null as polygon) end
+	             then (select public.min(unit) from public.unit_units)
+	           else (select public.min(unit) from public.unit_units)
+	           end
+	         as unit)),
+	    case when (cast(null as uuid) >= cast(null as uuid)) 
+	        or (true) then case when subq_1.c2 <= (select idx_blks_read from pg_catalog.pg_statio_sys_indexes limit 1 offset 1)
+	             then case when (cast(null as int8) < (select blks_read from pg_catalog.pg_statio_all_sequences limit 1 offset 2)
+	                ) 
+	            and ((sample_0.admin_option is not NULL) 
+	              or (cast(null as lseg) ?# cast(null as lseg))) then cast(null as record) else cast(null as record) end
+	           else case when (cast(null as int8) < (select blks_read from pg_catalog.pg_statio_all_sequences limit 1 offset 2)
+	                ) 
+	            and ((sample_0.admin_option is not NULL) 
+	              or (cast(null as lseg) ?# cast(null as lseg))) then cast(null as record) else cast(null as record) end
+	           end
+	         else case when subq_1.c2 <= (select idx_blks_read from pg_catalog.pg_statio_sys_indexes limit 1 offset 1)
+	             then case when (cast(null as int8) < (select blks_read from pg_catalog.pg_statio_all_sequences limit 1 offset 2)
+	                ) 
+	            and ((sample_0.admin_option is not NULL) 
+	              or (cast(null as lseg) ?# cast(null as lseg))) then cast(null as record) else cast(null as record) end
+	           else case when (cast(null as int8) < (select blks_read from pg_catalog.pg_statio_all_sequences limit 1 offset 2)
+	                ) 
+	            and ((sample_0.admin_option is not NULL) 
+	              or (cast(null as lseg) ?# cast(null as lseg))) then cast(null as record) else cast(null as record) end
+	           end
+	         end
+	      ) as record)

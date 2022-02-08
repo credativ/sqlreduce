@@ -1,0 +1,19 @@
+create table ref_0 as select repeat('abcde', (random() * 10)::integer)
+t, random() * 1000 i from generate_series(1, 5000);
+create index on ref_0 (i);
+analyze ref_0 ;
+
+select distinct
+        subq_0.c1 as c0,
+        case when (true = pg_catalog.pg_rotate_logfile_old()) then
+                ref_0.t else ref_0.t
+        end
+             as c4
+        from
+          public.ref_0,
+          lateral (select
+
+
+                ref_0.i as c1
+              from
+                generate_series(1, 100) as ref_1) as subq_0

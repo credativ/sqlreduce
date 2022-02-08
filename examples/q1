@@ -1,0 +1,37 @@
+select  
+	  ref_0.event_object_schema as c0, 
+	  56 as c1, 
+	  pg_catalog.gen_random_uuid() as c2, 
+	  sample_2.dattablespace as c3, 
+	  ref_0.trigger_catalog as c4
+	from 
+	  pg_catalog.pg_transform as sample_0 tablesample system (1.1) 
+	        right join (select  
+	              sample_1.data as c0, 
+	              sample_1.pageno as c1, 
+	              sample_1.data as c2, 
+	              45 as c3, 
+	              sample_1.loid as c4
+	            from 
+	              pg_catalog.pg_largeobject as sample_1 tablesample system (9.7) 
+	            where cast(null as anymultirange) <= cast(null as anymultirange)
+	            limit 59) as subq_0
+	        on (cast(null as anyrange) &< cast(null as anyrange))
+	      left join information_schema.triggered_update_columns as ref_0
+	        left join pg_catalog.pg_database as sample_2 tablesample bernoulli (1.4) 
+	          inner join information_schema.triggers as ref_1
+	          on (true)
+	        on (cast(null as inet) >> (select client_addr from pg_catalog.pg_stat_activity limit 1 offset 1)
+	              )
+	      on ((sample_2.datminmxid = (select pg_catalog.max(pid) from pg_catalog.pg_stat_wal_receiver)
+	              ) 
+	          or (cast(null as box) <^ cast(null as box)))
+	    right join public.domain_indirection_test as sample_3 tablesample bernoulli (3.9) 
+	    on ((pg_catalog.make_time(
+	            cast(sample_2.datconnlimit as int4),
+	            cast(subq_0.c3 as int4),
+	            cast(cast(null as float8) as float8)) > case when (select pg_catalog.bit_xor(relnatts) from pg_catalog.pg_class)
+	                 > cast(null as int2) then cast(null as "time") else cast(null as "time") end
+	            ) 
+	        and (cast(null as point) <@ cast(null as polygon)))
+	where pg_catalog.random() is not NULL

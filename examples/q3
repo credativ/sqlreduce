@@ -1,0 +1,107 @@
+select  
+	  pg_catalog.jsonb_ne(
+	    cast(pg_catalog.jsonb_build_object() as jsonb),
+	    cast(case when (select pg_catalog.max(null_frac) from pg_catalog.pg_stats)
+	           = cast(null as float8) then pg_catalog.jsonb_extract_path(
+	        cast(pg_catalog.jsonb_build_object() as jsonb),
+	        cast(cast(null as _text) as _text)) else pg_catalog.jsonb_extract_path(
+	        cast(pg_catalog.jsonb_build_object() as jsonb),
+	        cast(cast(null as _text) as _text)) end
+	       as jsonb)) as c0, 
+	  subq_1.c1 as c1
+	from 
+	  (select  
+	        35 as c0, 
+	        sample_1.stavalues1 as c1, 
+	        pg_catalog.pg_export_snapshot() as c2
+	      from 
+	        pg_catalog.pg_attribute as ref_0
+	          inner join pg_catalog.pg_inherits as sample_0 tablesample system (1.8) 
+	            inner join pg_catalog.pg_statistic as sample_1 tablesample bernoulli (2.4) 
+	            on (sample_0.inhrelid = sample_1.starelid )
+	          on (cast(null as date) >= cast(null as date))
+	      where pg_catalog.date_bin(
+	          cast(cast(null as "interval") as "interval"),
+	          cast((select last_msg_send_time from pg_catalog.pg_stat_subscription limit 1 offset 1)
+	             as timestamptz),
+	          cast((select pg_catalog.min(stats_reset) from pg_catalog.pg_stat_replication_slots)
+	             as timestamptz)) = pg_catalog.timestamptz(
+	          cast(cast(null as date) as date),
+	          cast(cast(nullif(cast(null as timetz),
+	            cast(null as timetz)) as timetz) as timetz))
+	      limit 80) as subq_0,
+	  lateral (select  
+	        sample_3.lomowner as c0, 
+	        subq_0.c1 as c1, 
+	        subq_0.c0 as c2, 
+	        sample_3.lomacl as c3, 
+	        sample_4.pronargdefaults as c4
+	      from 
+	        pg_catalog.pg_opclass as sample_2 tablesample system (7.3) 
+	          left join pg_catalog.pg_largeobject_metadata as sample_3 tablesample bernoulli (1.6) 
+	            inner join pg_catalog.pg_proc as sample_4 tablesample bernoulli (4.8) 
+	            on (subq_0.c1 is NULL)
+	          on (EXISTS (
+	              select  
+	                  sample_3.lomowner as c0, 
+	                  92 as c1, 
+	                  sample_2.opcintype as c2, 
+	                  subq_0.c2 as c3, 
+	                  subq_0.c0 as c4, 
+	                  sample_3.lomowner as c5, 
+	                  subq_0.c1 as c6
+	                from 
+	                  pg_catalog.pg_stat_progress_copy as ref_1
+	                where (EXISTS (
+	                    select  
+	                        sample_4.proparallel as c0, 
+	                        subq_0.c2 as c1, 
+	                        sample_3.lomacl as c2, 
+	                        50 as c3, 
+	                        sample_5.laninline as c4, 
+	                        ref_1.datname as c5, 
+	                        sample_3.lomowner as c6, 
+	                        sample_5.lanname as c7, 
+	                        subq_0.c2 as c8, 
+	                        ref_1.bytes_processed as c9, 
+	                        ref_1.bytes_processed as c10, 
+	                        subq_0.c2 as c11
+	                      from 
+	                        pg_catalog.pg_language as sample_5 tablesample system (7.4) 
+	                      where true
+	                      limit 64)) 
+	                  or (cast(null as anyenum) = cast(null as anyenum))))
+	      where (pg_catalog.pg_logical_emit_message(
+	            cast(sample_2.opcdefault as bool),
+	            cast(subq_0.c2 as text),
+	            cast(subq_0.c2 as text)) is NULL) 
+	        or (cast(null as "timestamp") > cast(null as date))
+	      limit 138) as subq_1
+	where cast(nullif(case when (subq_0.c2 ~>=~ subq_0.c2) 
+	        or ((true) 
+	          or (subq_0.c0 <= (select pg_catalog.min(page) from pg_catalog.pg_locks)
+	              )) then pg_catalog.float4smaller(
+	        cast(case when (select tablename from pg_catalog.pg_stats limit 1 offset 6)
+	               is NULL then (select reltuples from pg_catalog.pg_class limit 1 offset 4)
+	             else (select reltuples from pg_catalog.pg_class limit 1 offset 4)
+	             end
+	           as float4),
+	        cast(cast(coalesce((select procost from pg_catalog.pg_proc limit 1 offset 3)
+	            ,
+	          case when 44 is NULL then (select procost from pg_catalog.pg_proc limit 1 offset 1)
+	               else (select procost from pg_catalog.pg_proc limit 1 offset 1)
+	               end
+	            ) as float4) as float4)) else pg_catalog.float4smaller(
+	        cast(case when (select tablename from pg_catalog.pg_stats limit 1 offset 6)
+	               is NULL then (select reltuples from pg_catalog.pg_class limit 1 offset 4)
+	             else (select reltuples from pg_catalog.pg_class limit 1 offset 4)
+	             end
+	           as float4),
+	        cast(cast(coalesce((select procost from pg_catalog.pg_proc limit 1 offset 3)
+	            ,
+	          case when 44 is NULL then (select procost from pg_catalog.pg_proc limit 1 offset 1)
+	               else (select procost from pg_catalog.pg_proc limit 1 offset 1)
+	               end
+	            ) as float4) as float4)) end
+	      ,
+	    cast(null as float4)) as float4) <= pg_catalog.pi()

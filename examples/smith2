@@ -1,0 +1,26 @@
+set min_parallel_table_scan_size = '8kB';
+set parallel_setup_cost = 1;
+select
+  sample_0.a as c0,
+  sample_0.a as c1,
+  pg_catalog.pg_stat_get_bgwriter_requested_checkpoints() as c2,
+  sample_0.b as c3
+from
+  public.itest6 as sample_0
+where EXISTS (
+  select
+      cast(coalesce(cast(nullif(sample_1.z,
+          sample_1.x) as int4),
+        sample_1.x) as int4) as c0,
+      pg_catalog.macaddr_cmp(
+        cast(case when false then cast(null as macaddr) else cast(null as macaddr) end
+           as macaddr),
+        cast(cast(null as macaddr) as macaddr)) as c1
+    from
+      public.insert_tbl as sample_1
+    where (select timestamptzcol from public.brintest limit 1 offset 29)
+         < pg_catalog.date_larger(
+        cast((select d from public.nv_child_2011 limit 1 offset 6)
+           as date),
+        cast((select pg_catalog.min(filler3) from public.mcv_lists)
+           as date)));

@@ -1,0 +1,19 @@
+select  
+	  (select fdwacl from pg_catalog.pg_foreign_data_wrapper limit 1 offset 36)
+	     as c0, 
+	  
+	    pg_catalog.bit_xor(
+	      cast(73 as int4)) over (partition by sample_0.amopmethod order by sample_0.amopfamily) as c1
+	from 
+	  pg_catalog.pg_amop as sample_0 tablesample system (8) 
+	    left join pg_catalog.pg_sequence as ref_0
+	    on ((select pid from pg_catalog.pg_stat_progress_analyze limit 1 offset 3)
+	           >= sample_0.amopstrategy)
+	where pg_catalog.circle_sub_pt(
+	    cast(cast(null as circle) as circle),
+	    cast(case when (select transaction from pg_catalog.pg_prepared_xacts limit 1 offset 3)
+	           = (select pg_catalog.bit_and(rolconnlimit) from pg_catalog.pg_roles)
+	           then cast(null as point) else cast(null as point) end
+	       as point)) >> pg_catalog.circle_in(
+	    cast(cast(nullif(cast(null as cstring),
+	      cast(null as cstring)) as cstring) as cstring))

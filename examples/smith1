@@ -1,0 +1,32 @@
+-- https://www.postgresql.org/message-id/87blfgqa4t.fsf@aurora.ydns.eu
+
+select * from
+  (select sample_1.a as c0
+      from fkpart5.fk2 as sample_1) as subq_0,
+  lateral (select  1
+      from
+ (select
+  subq_0.c0 as c3,
+  subq_5.c0 as c7,
+  sample_2.b as c9
+       from
+  public.brin_test as sample_2,
+  lateral (select
+        subq_3.c1 as c0
+      from
+        fkpart5.pk3 as sample_3,
+        lateral (select
+       sample_2.a as c0,
+       sample_3.a as c1
+     from
+       public.rtest_interface as ref_0
+     ) as subq_1,
+        lateral (select
+       subq_1.c1 as c1
+     from
+       public.alter_table_under_transition_tables as ref_1
+     ) as subq_3
+      ) as subq_5) as subq_6
+   right join public.gtest30_1 as sample_6
+   on (true)
+      where subq_6.c7 = subq_6.c3) as subq_7;

@@ -1,0 +1,570 @@
+WITH 
+	jennifer_0 AS (select  
+	    sample_0.cfgowner as c0, 
+	    sample_0.cfgowner as c1, 
+	    sample_0.cfgname as c2
+	  from 
+	    pg_catalog.pg_ts_config as sample_0 tablesample bernoulli (5.6) 
+	  where false
+	  limit 88), 
+	
+	jennifer_1 AS (select  
+	    subq_0.c2 as c0, 
+	    subq_0.c4 as c1, 
+	    case when (cast(null as inet) << (select pg_catalog.min(client_addr) from pg_catalog.pg_stat_activity)
+	            ) 
+	        or (cast(null as macaddr) >= cast(null as macaddr)) then subq_0.c2 else subq_0.c2 end
+	       as c2, 
+	    subq_0.c0 as c3, 
+	    subq_0.c4 as c4, 
+	    subq_0.c2 as c5, 
+	    subq_0.c2 as c6
+	  from 
+	    (select  
+	          ref_0.adrelid as c0, 
+	          ref_0.adrelid as c1, 
+	          ref_0.adnum as c2, 
+	          ref_0.adrelid as c3, 
+	          ref_0.adnum as c4
+	        from 
+	          pg_catalog.pg_attrdef as ref_0
+	        where (cast(null as bpchar) ~<=~ cast(null as bpchar)) 
+	          or (EXISTS (
+	            select  
+	                ref_0.adbin as c0, 
+	                ref_0.adbin as c1, 
+	                (select pg_catalog.stddev(adnum) from pg_catalog.pg_attrdef)
+	                   as c2, 
+	                ref_0.adnum as c3, 
+	                sample_1.description as c4, 
+	                ref_0.adrelid as c5, 
+	                ref_0.adrelid as c6, 
+	                sample_1.classoid as c7, 
+	                ref_0.adbin as c8, 
+	                ref_0.adrelid as c9, 
+	                (select roname from pg_catalog.pg_replication_origin limit 1 offset 73)
+	                   as c10, 
+	                sample_1.description as c11, 
+	                ref_0.adbin as c12
+	              from 
+	                pg_catalog.pg_shdescription as sample_1 tablesample system (2) 
+	              where cast(null as int8) = 41
+	              limit 159))) as subq_0
+	  where EXISTS (
+	    select  
+	        38 as c0
+	      from 
+	        pg_catalog.pg_description as sample_2 tablesample bernoulli (4.9) ,
+	        lateral (select  
+	              ref_1.umserver as c0, 
+	              subq_1.c0 as c1, 
+	              sample_2.objoid as c2, 
+	              sample_2.objsubid as c3, 
+	              subq_1.c0 as c4
+	            from 
+	              pg_catalog.pg_user_mapping as ref_1,
+	              lateral (select  
+	                    ref_1.umserver as c0, 
+	                    sample_2.objoid as c1, 
+	                    sample_3.maptokentype as c2, 
+	                    (select tablespaces_total from pg_catalog.pg_stat_progress_basebackup limit 1 offset 93)
+	                       as c3, 
+	                    (select pg_catalog.stddev(stxstattarget) from pg_catalog.pg_statistic_ext)
+	                       as c4
+	                  from 
+	                    pg_catalog.pg_ts_config_map as sample_3 tablesample system (1) 
+	                  where subq_0.c2 < subq_0.c4
+	                  limit 51) as subq_1
+	            where (select client_addr from pg_catalog.pg_stat_replication limit 1 offset 5)
+	                 < (select client_addr from pg_catalog.pg_stat_activity limit 1 offset 3)
+	                
+	            limit 101) as subq_2
+	      where false
+	      limit 37)), 
+	
+	jennifer_2 AS (select  
+	    (select subsynccommit from pg_catalog.pg_subscription limit 1 offset 6)
+	       as c0, 
+	    ref_2.roname as c1, 
+	    sample_4.srvtype as c2, 
+	    (select column_name from information_schema.column_domain_usage limit 1 offset 5)
+	       as c3, 
+	    ref_2.roname as c4, 
+	    subq_4.c1 as c5, 
+	    subq_4.c0 as c6, 
+	    
+	      pg_catalog.variance(
+	        cast(pg_catalog.hashfloat8(
+	          cast(cast(null as float8) as float8)) as int4)) over (partition by ref_6.option_name,ref_6.option_name order by ref_6.foreign_server_catalog) as c7, 
+	    subq_4.c1 as c8
+	  from 
+	    pg_catalog.pg_foreign_server as sample_4 tablesample system (1.7) 
+	          right join pg_catalog.pg_replication_origin as ref_2
+	          on (EXISTS (
+	              select  
+	                  ref_2.roname as c0, 
+	                  ref_2.roident as c1, 
+	                  (select pg_catalog.stddev_pop(staattnum) from pg_catalog.pg_statistic)
+	                     as c2, 
+	                  ref_3.udt_schema as c3
+	                from 
+	                  information_schema.attributes as ref_3
+	                where (false) 
+	                  and (false)))
+	        inner join (select  
+	              subq_3.c0 as c0, 
+	              ref_4.inhrelid as c1, 
+	              subq_3.c0 as c2
+	            from 
+	              pg_catalog.pg_inherits as ref_4,
+	              lateral (select  
+	                    ref_5.calls as c0, 
+	                    ref_4.inhrelid as c1
+	                  from 
+	                    pg_catalog.pg_stat_user_functions as ref_5
+	                  where cast(null as box) @> cast(null as point)
+	                  limit 125) as subq_3
+	            where (cast(null as jsonb) <> cast(null as jsonb)) 
+	              and (ref_4.inhparent is NULL)
+	            limit 144) as subq_4
+	        on ((select last_vacuum from pg_catalog.pg_stat_user_tables limit 1 offset 1)
+	               = cast(null as "timestamp"))
+	      left join information_schema.user_mapping_options as ref_6
+	      on (pg_catalog.int4(
+	            cast(subq_4.c2 as int8)) = (select objsubid from pg_catalog.pg_description limit 1 offset 1)
+	            )
+	  where (true) 
+	    or (EXISTS (
+	      select  
+	          sample_4.srvversion as c0, 
+	          ref_2.roname as c1
+	        from 
+	          pg_catalog.pg_stat_replication_slots as ref_7
+	        where ((cast(null as box) && cast(null as box)) 
+	            or (sample_4.srvname !~ sample_4.srvtype)) 
+	          and (false)
+	        limit 123))), 
+	
+	jennifer_3 AS (select  
+	    ref_10.subowner as c0, 
+	    ref_9.cfgnamespace as c1, 
+	    ref_11.indexrelid as c2, 
+	    subq_5.c0 as c3
+	  from 
+	    debug.foo as ref_8
+	          inner join pg_catalog.pg_ts_config as ref_9
+	          on (cast(null as timestamptz) < cast(null as date))
+	        inner join pg_catalog.pg_subscription as ref_10
+	        on ((cast(null as tsquery) < cast(null as tsquery)) 
+	            and ((cast(null as anymultirange) <= cast(null as anymultirange)) 
+	              or ((select pg_catalog.min(amprocnum) from pg_catalog.pg_amproc)
+	                   <> (select pg_catalog.sum(encoding) from pg_catalog.pg_database)
+	                  )))
+	      inner join public.t as sample_5 tablesample bernoulli (4.1) 
+	          left join pg_catalog.pg_index as ref_11
+	          on ((select pg_catalog.min(stats_reset) from public.pg_stat_statements_info)
+	                 <> cast(null as date))
+	        left join (select  
+	                ref_12.confl_tablespace as c0, 
+	                ref_12.confl_snapshot as c1
+	              from 
+	                pg_catalog.pg_stat_database_conflicts as ref_12
+	              where (ref_12.datid is NULL) 
+	                and (ref_12.confl_deadlock is not NULL)) as subq_5
+	          right join pg_catalog.pg_attribute as sample_6 tablesample system (3.6) 
+	          on (EXISTS (
+	              select  
+	                  subq_5.c1 as c0, 
+	                  sample_6.attinhcount as c1, 
+	                  subq_5.c1 as c2, 
+	                  ref_13.setting as c3, 
+	                  subq_6.c0 as c4, 
+	                  sample_6.attislocal as c5, 
+	                  subq_6.c0 as c6, 
+	                  subq_5.c1 as c7, 
+	                  ref_13.seqno as c8
+	                from 
+	                  pg_catalog.pg_file_settings as ref_13,
+	                  lateral (select  
+	                        subq_5.c0 as c0
+	                      from 
+	                        pg_catalog.pg_extension as sample_7 tablesample bernoulli (2) 
+	                      where cast(null as box) >= cast(null as box)
+	                      limit 174) as subq_6
+	                where (select last_update from debug.foo limit 1 offset 2)
+	                     <> (select last_update from debug.foo limit 1 offset 38)
+	                    ))
+	        on ((false) 
+	            or ((cast(null as "time") < cast(null as "time")) 
+	              or ((sample_6.attfdwoptions is not NULL) 
+	                and (true))))
+	      on (ref_8.itemid is not NULL)
+	  where EXISTS (
+	    select  
+	        sample_6.attnum as c0, 
+	        ref_9.cfgname as c1, 
+	        sample_6.attndims as c2, 
+	        sample_6.attmissingval as c3, 
+	        37 as c4
+	      from 
+	        pg_catalog.pg_inherits as sample_8 tablesample system (7.3) 
+	      where false)
+	  limit 138), 
+	
+	jennifer_4 AS (select  
+	    ref_14.adrelid as c0, 
+	    ref_14.adnum as c1, 
+	    ref_14.adrelid as c2, 
+	    ref_14.adrelid as c3, 
+	    ref_14.adbin as c4, 
+	    ref_14.adbin as c5
+	  from 
+	    pg_catalog.pg_attrdef as ref_14
+	  where cast(nullif(pg_catalog.pg_backend_pid(),
+	      13) as int4) <> (select pid from pg_catalog.pg_stat_subscription limit 1 offset 2)
+	      ), 
+	
+	jennifer_5 AS (select  
+	    subq_7.c8 as c0, 
+	    pg_catalog.pg_collation_for(
+	      cast(cast(nullif(cast(nullif(cast(null as "any"),
+	          case when (select pg_catalog.min(passwd) from pg_catalog.pg_user)
+	                 < cast(null as name) then cast(null as "any") else cast(null as "any") end
+	            ) as "any"),
+	        cast(null as "any")) as "any") as "any")) as c1, 
+	    
+	      pg_catalog.string_agg(
+	        cast((select data from pg_catalog.pg_largeobject limit 1 offset 5)
+	           as bytea),
+	        cast((select data from pg_catalog.pg_largeobject limit 1 offset 28)
+	           as bytea)) over (partition by subq_7.c0,subq_7.c8 order by subq_7.c5) as c2
+	  from 
+	    (select  
+	          sample_10.inhdetachpending as c0, 
+	          case when cast(null as bytea) <> (select tgargs from pg_catalog.pg_trigger limit 1 offset 3)
+	                 then sample_10.inhdetachpending else sample_10.inhdetachpending end
+	             as c1, 
+	          sample_10.inhparent as c2, 
+	          sample_10.inhseqno as c3, 
+	          sample_9.polrelid as c4, 
+	          sample_9.polqual as c5, 
+	          sample_10.inhseqno as c6, 
+	          pg_catalog.txid_current_snapshot() as c7, 
+	          sample_9.polroles as c8
+	        from 
+	          pg_catalog.pg_policy as sample_9 tablesample system (0.7) 
+	            right join pg_catalog.pg_inherits as sample_10 tablesample system (7.3) 
+	            on (cast(null as bpchar) < cast(null as bpchar))
+	        where cast(null as anyrange) @> case when ((cast(null as date) = (select download_time from debug.downloaded_images limit 1 offset 5)
+	                    ) 
+	                or (sample_9.polrelid is not NULL)) 
+	              or (cast(null as "bit") > cast(null as "bit")) then cast(null as anyrange) else cast(null as anyrange) end
+	            ) as subq_7
+	  where (subq_7.c5 is not NULL) 
+	    and (cast(coalesce(pg_catalog.pg_switch_wal(),
+	        case when cast(null as circle) &< cast(null as circle) then pg_catalog.pg_switch_wal() else pg_catalog.pg_switch_wal() end
+	          ) as pg_lsn) >= pg_catalog.pg_replication_origin_session_progress(
+	        cast(subq_7.c1 as bool)))
+	  limit 103), 
+	
+	jennifer_6 AS (select  
+	    subq_10.c1 as c0, 
+	    subq_10.c1 as c1, 
+	    pg_catalog.inet_server_addr() as c2, 
+	    subq_10.c0 as c3
+	  from 
+	    (select  
+	          ref_15.utc_offset as c0, 
+	          subq_9.c3 as c1
+	        from 
+	          pg_catalog.pg_timezone_abbrevs as ref_15,
+	          lateral (select  
+	                ref_16.with_check as c0, 
+	                ref_16.qual as c1, 
+	                subq_8.c0 as c2, 
+	                ref_16.tablename as c3
+	              from 
+	                pg_catalog.pg_policies as ref_16,
+	                lateral (select  
+	                      ref_15.utc_offset as c0, 
+	                      ref_16.policyname as c1
+	                    from 
+	                      pg_catalog.pg_auth_members as sample_11 tablesample system (3.2) 
+	                    where cast(null as record) <= cast(null as record)
+	                    limit 114) as subq_8
+	              where cast(null as macaddr) > cast(null as macaddr)
+	              limit 99) as subq_9
+	        where EXISTS (
+	          select  
+	              ref_15.abbrev as c0, 
+	              ref_17.amtype as c1, 
+	              ref_15.is_dst as c2, 
+	              ref_17.amhandler as c3, 
+	              ref_17.amtype as c4, 
+	              ref_15.utc_offset as c5, 
+	              ref_15.utc_offset as c6, 
+	              subq_9.c0 as c7, 
+	              ref_18.table_schema as c8, 
+	              (select initprivs from pg_catalog.pg_init_privs limit 1 offset 4)
+	                 as c9, 
+	              ref_17.amhandler as c10, 
+	              subq_9.c1 as c11, 
+	              ref_17.amtype as c12, 
+	              ref_17.amname as c13, 
+	              ref_18.specific_catalog as c14, 
+	              ref_15.abbrev as c15, 
+	              ref_17.amtype as c16
+	            from 
+	              pg_catalog.pg_am as ref_17
+	                right join information_schema.routine_table_usage as ref_18
+	                on (cast(null as int8) < cast(null as int8))
+	            where cast(null as bytea) <> (select data from pg_catalog.pg_largeobject limit 1 offset 1)
+	                
+	            limit 57)
+	        limit 134) as subq_10
+	  where pg_catalog.hashint4(
+	      cast((select pg_catalog.min(objsubid) from pg_catalog.pg_shdepend)
+	         as int4)) < pg_catalog.int82mi(
+	      cast(pg_catalog.pg_stat_get_tuples_hot_updated(
+	        cast(case when cast(null as line) ?-| cast(null as line) then (select pg_catalog.min(datid) from pg_catalog.pg_stat_progress_create_index)
+	             else (select pg_catalog.min(datid) from pg_catalog.pg_stat_progress_create_index)
+	             end
+	           as oid)) as int8),
+	      cast(cast(null as int2) as int2))
+	  limit 178), 
+	
+	jennifer_7 AS (select  
+	    (select id from public.t limit 1 offset 3)
+	       as c0, 
+	    pg_catalog.boolle(
+	      cast(pg_catalog.textgename(
+	        cast((select abbrev from pg_catalog.pg_timezone_abbrevs limit 1 offset 4)
+	           as text),
+	        cast((select srvname from pg_catalog.pg_foreign_server limit 1 offset 1)
+	           as name)) as bool),
+	      cast(pg_catalog.pg_rotate_logfile_old() as bool)) as c1, 
+	    subq_11.c2 as c2, 
+	    subq_11.c5 as c3, 
+	    subq_11.c3 as c4, 
+	    pg_catalog.oidvectorin(
+	      cast(case when cast(nullif((select proargtypes from pg_catalog.pg_proc limit 1 offset 28)
+	              ,
+	            cast(null as oidvector)) as oidvector) < cast(coalesce(cast(null as oidvector),
+	            cast(null as oidvector)) as oidvector) then cast(null as cstring) else cast(null as cstring) end
+	         as cstring)) as c5, 
+	    subq_11.c3 as c6, 
+	    pg_catalog.format(
+	      cast((select subconninfo from pg_catalog.pg_subscription limit 1 offset 1)
+	         as text)) as c7, 
+	    subq_11.c4 as c8, 
+	    subq_11.c3 as c9, 
+	    (select table_name from information_schema.constraint_column_usage limit 1 offset 2)
+	       as c10, 
+	    case when (true) 
+	        and (cast(null as box) ~= cast(null as box)) then subq_11.c3 else subq_11.c3 end
+	       as c11, 
+	    subq_11.c4 as c12, 
+	    subq_11.c3 as c13
+	  from 
+	    (select  
+	          ref_19.foreign_server_name as c0, 
+	          (select pg_catalog.min(utc_offset) from pg_catalog.pg_timezone_abbrevs)
+	             as c1, 
+	          sample_12.umuser as c2, 
+	          ref_19.srvowner as c3, 
+	          sample_12.umoptions as c4, 
+	          sample_12.umserver as c5
+	        from 
+	          pg_catalog.pg_user_mapping as sample_12 tablesample system (0.2) 
+	            inner join information_schema._pg_user_mappings as ref_19
+	            on (sample_12.umuser = ref_19.umuser )
+	        where cast(null as anymultirange) >> cast(null as anyrange)) as subq_11
+	  where (select procost from pg_catalog.pg_proc limit 1 offset 66)
+	       = (select pg_catalog.max(stanullfrac) from pg_catalog.pg_statistic)
+	      
+	  limit 106), 
+	
+	jennifer_8 AS (select  
+	    subq_12.c5 as c0, 
+	    pg_catalog.int4multirange() as c1
+	  from 
+	    (select  
+	          sample_13.prrelid as c0, 
+	          sample_13.prpubid as c1, 
+	          sample_13.prpubid as c2, 
+	          sample_13.prpubid as c3, 
+	          sample_13.prpubid as c4, 
+	          sample_13.prrelid as c5, 
+	          sample_13.prpubid as c6, 
+	          (select foreign_server_name from information_schema.foreign_server_options limit 1 offset 4)
+	             as c7, 
+	          sample_13.prpubid as c8
+	        from 
+	          pg_catalog.pg_publication_rel as sample_13 tablesample system (7) 
+	        where pg_catalog.current_query() ~~* (select name from pg_catalog.pg_stat_slru limit 1 offset 5)
+	            
+	        limit 104) as subq_12
+	  where (subq_12.c8 is NULL) 
+	    and ((((cast(null as circle) >= cast(null as circle)) 
+	          and ((true) 
+	            and (cast(null as timestamptz) = cast(null as "timestamp")))) 
+	        and (false)) 
+	      or (EXISTS (
+	        select  
+	            subq_12.c7 as c0, 
+	            (select toast_blks_hit from pg_catalog.pg_statio_all_tables limit 1 offset 6)
+	               as c1, 
+	            subq_12.c2 as c2, 
+	            subq_12.c3 as c3, 
+	            ref_20.typalign as c4, 
+	            ref_20.typsend as c5, 
+	            55 as c6, 
+	            44 as c7, 
+	            subq_12.c0 as c8, 
+	            ref_20.typowner as c9, 
+	            ref_20.typcategory as c10, 
+	            ref_20.typelem as c11, 
+	            subq_12.c8 as c12
+	          from 
+	            pg_catalog.pg_type as ref_20
+	          where ((false) 
+	              and (cast(null as point) ~= cast(null as point))) 
+	            or (cast(null as uuid) >= cast(null as uuid))
+	          limit 104)))
+	  limit 65), 
+	
+	jennifer_9 AS (select  
+	    (select pg_catalog.var_pop(wal_write_time) from pg_catalog.pg_stat_wal)
+	       as c0, 
+	    (select event_object_table from information_schema.triggered_update_columns limit 1 offset 3)
+	       as c1, 
+	    ref_21.option_name as c2, 
+	    pg_catalog.float8abs(
+	      cast(case when cast(null as "char") >= cast(null as "char") then (select total_time from pg_catalog.pg_stat_user_functions limit 1 offset 1)
+	           else (select total_time from pg_catalog.pg_stat_user_functions limit 1 offset 1)
+	           end
+	         as float8)) as c3, 
+	    ref_21.option_name as c4, 
+	    ref_21.option_name as c5, 
+	    ref_21.option_value as c6, 
+	    ref_21.option_name as c7, 
+	    ref_21.authorization_identifier as c8, 
+	    case when ((EXISTS (
+	            select  
+	                subq_13.c0 as c0, 
+	                sample_14.ftoptions as c1
+	              from 
+	                pg_catalog.pg_foreign_table as sample_14 tablesample system (9.2) ,
+	                lateral (select  
+	                      sample_15.objid as c0, 
+	                      sample_14.ftoptions as c1, 
+	                      sample_15.dbid as c2, 
+	                      sample_15.dbid as c3
+	                    from 
+	                      pg_catalog.pg_shdepend as sample_15 tablesample system (6.3) 
+	                    where cast(null as lseg) ?# cast(null as lseg)
+	                    limit 82) as subq_13
+	              where ((select itemid from debug.foo limit 1 offset 28)
+	                     < (select extversion from pg_catalog.pg_extension limit 1 offset 3)
+	                    ) 
+	                or (subq_13.c1 < subq_13.c1)
+	              limit 76)) 
+	          or ((ref_21.foreign_server_name is not NULL) 
+	            or (ref_21.option_name is NULL))) 
+	        or (ref_21.authorization_identifier is NULL) then ref_21.option_name else ref_21.option_name end
+	       as c9, 
+	    (select idx_tup_fetch from pg_catalog.pg_stat_sys_tables limit 1 offset 4)
+	       as c10
+	  from 
+	    information_schema.user_mapping_options as ref_21
+	  where EXISTS (
+	    select  
+	        ref_24.umuser as c0
+	      from 
+	        pg_catalog.pg_constraint as sample_16 tablesample bernoulli (3.4) 
+	              inner join information_schema.check_constraints as ref_22
+	              on (true)
+	            left join pg_catalog.pg_depend as sample_17 tablesample system (8.6) 
+	            on (cast(null as anyrange) <= cast(null as anyrange))
+	          inner join pg_catalog.pg_matviews as ref_23
+	            left join pg_catalog.pg_user_mapping as ref_24
+	            on ((cast(null as money) < cast(null as money)) 
+	                or (ref_23.definition ^@ (select subconninfo from pg_catalog.pg_subscription limit 1 offset 3)
+	                    ))
+	          on ((ref_23.matviewname is NULL) 
+	              and (sample_16.conffeqop is NULL))
+	      where (false) 
+	        and (sample_17.objid is NULL)))
+	select  
+	    subq_17.c0 as c0, 
+	    subq_17.c0 as c1, 
+	    pg_catalog.timezone(
+	      cast(
+	        pg_catalog.max(
+	          cast((select external_id from pg_catalog.pg_replication_origin_status limit 1 offset 6)
+	             as text)) over (partition by sample_19.stxoid,subq_17.c0 order by subq_14.c6) as text),
+	      cast(cast(coalesce(cast(null as "timestamp"),
+	        case when cast(null as anymultirange) <@ cast(null as anyrange) then cast(null as "timestamp") else cast(null as "timestamp") end
+	          ) as "timestamp") as "timestamp")) as c2, 
+	    pg_catalog.pg_advisory_unlock_all() as c3, 
+	    subq_14.c3 as c4, 
+	    subq_17.c0 as c5, 
+	    sample_19.stxoid as c6, 
+	    sample_19.stxdexpr as c7, 
+	    case when false then 
+	        pg_catalog.string_agg(
+	          cast(cast(null as bytea) as bytea),
+	          cast(pg_catalog.json_send(
+	            cast((select pg_catalog.json_agg(evtowner) from pg_catalog.pg_event_trigger)
+	               as json)) as bytea)) over (partition by sample_19.stxdexpr,subq_14.c2 order by sample_19.stxoid) else 
+	        pg_catalog.string_agg(
+	          cast(cast(null as bytea) as bytea),
+	          cast(pg_catalog.json_send(
+	            cast((select pg_catalog.json_agg(evtowner) from pg_catalog.pg_event_trigger)
+	               as json)) as bytea)) over (partition by sample_19.stxdexpr,subq_14.c2 order by sample_19.stxoid) end
+	       as c8, 
+	    pg_catalog.pg_replication_origin_xact_reset() as c9, 
+	    subq_17.c0 as c10
+	  from 
+	    (select  
+	            sample_18.spcname as c0, 
+	            26 as c1, 
+	            (select foreign_server_catalog from information_schema.foreign_servers limit 1 offset 1)
+	               as c2, 
+	            49 as c3, 
+	            sample_18.spcname as c4, 
+	            (select pg_catalog.variance(typlen) from pg_catalog.pg_type)
+	               as c5, 
+	            sample_18.spcowner as c6, 
+	            sample_18.spcowner as c7
+	          from 
+	            pg_catalog.pg_tablespace as sample_18 tablesample system (1.6) 
+	          where (27 <> cast(null as int8)) 
+	            and (sample_18.spcowner is NULL)
+	          limit 160) as subq_14
+	      left join pg_catalog.pg_statistic_ext_data as sample_19 tablesample system (8.3) 
+	      on (case when cast(null as date) = cast(null as date) then cast(null as "time") else cast(null as "time") end
+	             < cast(null as "time")),
+	    lateral (select  
+	          subq_14.c0 as c0
+	        from 
+	          (select distinct 
+	                (select data from pg_catalog.pg_largeobject limit 1 offset 3)
+	                   as c0
+	              from 
+	                pg_catalog.pg_publication_rel as sample_20 tablesample bernoulli (0.7) ,
+	                lateral (select  
+	                      sample_21.opcmethod as c0, 
+	                      sample_19.stxdmcv as c1, 
+	                      sample_19.stxddependencies as c2
+	                    from 
+	                      pg_catalog.pg_opclass as sample_21 tablesample bernoulli (5.1) 
+	                    where false
+	                    limit 113) as subq_15
+	              where subq_14.c0 < subq_14.c4
+	              limit 119) as subq_16
+	        where false) as subq_17
+	  where cast(null as anyrange) > case when (select owner from pg_catalog.pg_prepared_xacts limit 1 offset 3)
+	           ~~ cast(null as text) then cast(null as anyrange) else cast(null as anyrange) end
+	      
+	  limit 106

@@ -25,13 +25,12 @@ def setattr_path(obj, path, node):
         setattr(parent, path[-1], node)
     return obj2
 
-def run_query(database, query):
+def run_query(state, query):
     while True:
         try:
-            conn = psycopg2.connect(database)
+            conn = psycopg2.connect(state['database'], fallback_application_name='sqlreduce')
             cur = conn.cursor()
-            cur.execute("set statement_timeout = '100ms'")
-            cur.execute('select');
+            cur.execute("set statement_timeout = %s", (state['timeout'],))
             break
         except Exception as e:
             print("Waiting for connection startup:", e)
@@ -41,24 +40,23 @@ def run_query(database, query):
     try:
         cur.execute(query)
     except psycopg2.Error as e:
-        error = e.pgerror.partition('\n')[0]
-        #print(e.pgcode)
-        #error = e.pgcode
+        if state['use_sqlstate']:
+            error = e.pgcode
+        else:
+            error = e.pgerror.partition('\n')[0]
     except Exception as e:
         print(e)
         error = e
     try:
-        #conn.rollback()
         conn.close()
     except:
         pass
     return error
 
 def check_connection(database):
-    conn = psycopg2.connect(database)
+    conn = psycopg2.connect(database, fallback_application_name='sqlreduce')
     cur = conn.cursor()
-    cur.execute("set lock_timeout = '500ms'")
-    conn.commit()
+    cur.execute('select')
     conn.close()
 
 def try_reduce(state, path, node):
@@ -75,7 +73,7 @@ def try_reduce(state, path, node):
     if state['verbose']:
         print(query, end='')
 
-    error = run_query(state['database'], query)
+    error = run_query(state, query)
     # if running the reduced query yields a different result, stop recursion here
     if error != state['expected_error']:
         if state['verbose']:
@@ -86,10 +84,7 @@ def try_reduce(state, path, node):
     if state['verbose']:
         print(" ✔")
 
-    #if len(query) < state['min_query_len']:
     state['parsetree'] = parsetree2
-    state['min_query'] = query
-    state['min_query_len'] = len(query)
 
     return True
 
@@ -127,6 +122,12 @@ def enumerate_paths(node, path=[]):
     elif isinstance(node, pglast.ast.CommonTableExpr):
         for p in enumerate_paths(node.ctequery, path+['ctequery']): yield p
 
+    elif isinstance(node, pglast.ast.CreateStmt):
+        pass
+
+    elif isinstance(node, pglast.ast.CreateTableAsStmt):
+        for p in enumerate_paths(node.query, path+['query']): yield p
+
     elif isinstance(node, pglast.ast.DeleteStmt):
         if node.whereClause:
             for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
@@ -135,10 +136,16 @@ def enumerate_paths(node, path=[]):
         if node.returningList:
             for p in enumerate_paths(node.returningList, path+['returningList']): yield p
 
-    elif isinstance(node, pglast.ast.FuncCall) and node.args:
-        # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
-        for i in range(len(node.args)):
-            for p in enumerate_paths(node.args[i], path+['args', i]): yield p
+    elif isinstance(node, pglast.ast.DropStmt):
+        pass
+
+    elif isinstance(node, pglast.ast.FuncCall):
+        if node.args:
+            # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
+            for i in range(len(node.args)):
+                for p in enumerate_paths(node.args[i], path+['args', i]): yield p
+        if node.over:
+            for p in enumerate_paths(node.over, path+['over']): yield p
 
     elif isinstance(node, pglast.ast.InsertStmt):
         if node.selectStmt:
@@ -155,6 +162,9 @@ def enumerate_paths(node, path=[]):
     elif isinstance(node, pglast.ast.NullTest):
         for p in enumerate_paths(node.arg, path+['arg']): yield p
 
+    elif isinstance(node, pglast.ast.RangeFunction):
+        pass # TODO: node structure is weird, check later
+
     elif isinstance(node, pglast.ast.RangeSubselect):
         for p in enumerate_paths(node.subquery, path+['subquery']): yield p
 
@@ -163,6 +173,9 @@ def enumerate_paths(node, path=[]):
 
     elif isinstance(node, pglast.ast.RangeVar):
         pass
+
+    elif isinstance(node, pglast.ast.RawStmt):
+        for p in enumerate_paths(node.stmt, path+['stmt']): yield p
 
     elif isinstance(node, pglast.ast.ResTarget):
         for p in enumerate_paths(node.val, path+['val']): yield p
@@ -185,11 +198,23 @@ def enumerate_paths(node, path=[]):
         if node.rarg:
             for p in enumerate_paths(node.rarg, path+['rarg']): yield p
 
+    elif isinstance(node, pglast.ast.SortBy):
+        for p in enumerate_paths(node.node, path+['node']): yield p
+
     elif isinstance(node, pglast.ast.SubLink):
         for p in enumerate_paths(node.subselect, path+['subselect']): yield p
 
     elif isinstance(node, pglast.ast.TypeCast):
         for p in enumerate_paths(node.arg, path+['arg']): yield p
+
+    elif isinstance(node, pglast.ast.VariableSetStmt):
+        pass
+
+    elif isinstance(node, pglast.ast.WindowDef):
+        if node.partitionClause:
+            for p in enumerate_paths(node.partitionClause, path+['partitionClause']): yield p
+        if node.orderClause:
+            for p in enumerate_paths(node.orderClause, path+['orderClause']): yield p
 
     elif isinstance(node, pglast.ast.WithClause):
         for i in range(len(node.ctes)):
@@ -202,8 +227,6 @@ def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
 
     node = getattr_path(state['parsetree'], path)
-    if False:
-        pass
 
     if isinstance(node, tuple):
         # try removing the tuple entirely unless it's a CoalesceExpr which doesn't like that
@@ -230,6 +253,10 @@ def reduce_step(state, path):
         if node.rexpr:
             if try_reduce(state, path, node.rexpr): return True
 
+    elif isinstance(node, pglast.ast.BoolExpr):
+        for arg in node.args:
+            if try_reduce(state, path, arg): return True
+
     elif isinstance(node, pglast.ast.CoalesceExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
         for arg in node.args:
@@ -242,9 +269,8 @@ def reduce_step(state, path):
     elif isinstance(node, pglast.ast.CommonTableExpr):
         if try_reduce(state, [], node.ctequery): return True
 
-    elif isinstance(node, pglast.ast.BoolExpr):
-        for arg in node.args:
-            if try_reduce(state, path, arg): return True
+    elif isinstance(node, pglast.ast.CreateTableAsStmt):
+        if try_reduce(state, [], node.query): return True
 
     elif isinstance(node, pglast.ast.CaseExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
@@ -254,6 +280,9 @@ def reduce_step(state, path):
         if node.defresult:
             if try_reduce(state, path, node.defresult): return True
 
+    elif isinstance(node, pglast.ast.CreateStmt):
+        pass
+
     elif isinstance(node, pglast.ast.DeleteStmt):
         if node.whereClause:
             if try_reduce(state, path+['whereClause'], None): return True
@@ -262,10 +291,14 @@ def reduce_step(state, path):
         if node.returningList:
             if try_reduce(state, path+['returningList'], None): return True
 
+    elif isinstance(node, pglast.ast.DropStmt):
+        pass
+
     elif isinstance(node, pglast.ast.FuncCall):
         if try_reduce(state, path, pglast.ast.Null()): return True
-        for arg in node.args:
-            if try_reduce(state, path, arg): return True
+        if node.args:
+            for arg in node.args:
+                if try_reduce(state, path, arg): return True
 
     # insert select -> select
     elif isinstance(node, pglast.ast.InsertStmt):
@@ -284,6 +317,9 @@ def reduce_step(state, path):
     elif isinstance(node, pglast.ast.NullTest):
         if try_reduce(state, path, node.arg): return True
 
+    elif isinstance(node, pglast.ast.RangeFunction):
+        pass # TODO: node structure is weird, check later
+
     # run subselect isolated
     elif isinstance(node, pglast.ast.RangeSubselect):
         if try_reduce(state, [], node.subquery): return True
@@ -293,6 +329,9 @@ def reduce_step(state, path):
 
     elif isinstance(node, pglast.ast.RangeVar):
         pass # no need to simplify table, we try removing altogether it elsewhere
+
+    elif isinstance(node, pglast.ast.RawStmt):
+        pass
 
     # select foo as bar -> select foo
     elif isinstance(node, pglast.ast.ResTarget):
@@ -306,6 +345,7 @@ def reduce_step(state, path):
         if node.limitOffset:
             if try_reduce(state, path+['limitOffset'], None): return True
         if node.whereClause:
+            #if try_reduce(state, path+['whereClause'], pglast.ast.A_Const(pglast.ast.String('true'))): return True
             if try_reduce(state, path+['whereClause'], None): return True
         if node.valuesLists:
             if try_reduce(state, path+['valuesLists'], None): return True
@@ -317,6 +357,9 @@ def reduce_step(state, path):
         if node.rarg:
             if try_reduce(state, [], node.rarg): return True
 
+    elif isinstance(node, pglast.ast.SortBy):
+        pass
+
     # try (subquery) and exists(select) standalone
     elif isinstance(node, pglast.ast.SubLink):
         if try_reduce(state, [], node.subselect): return True
@@ -325,7 +368,13 @@ def reduce_step(state, path):
     elif isinstance(node, pglast.ast.TypeCast):
         if try_reduce(state, path, node.arg): return True
 
+    elif isinstance(node, pglast.ast.WindowDef):
+        pass
+
     elif isinstance(node, pglast.ast.WithClause):
+        pass
+
+    elif isinstance(node, pglast.ast.VariableSetStmt):
         pass
 
     else:
@@ -344,42 +393,40 @@ def reduce_loop(state):
                 found = True
                 break
 
-def run_reduce(database, query, verbose=False):
+def run_reduce(database, query, verbose=False, use_sqlstate=False, timeout='100ms'):
     """Set up state object for running reduce steps"""
 
     # parse query
     parsed_query = pglast.parse_sql(query)
-    assert len(parsed_query) == 1
-    parsetree = parsed_query[0]
+    parsetree = parsed_query
     regenerated_query = RawStream()(parsetree)
-
-    # check database connection
-    check_connection(database)
-    expected_error = run_query(database, query)
-
-    if verbose:
-        print("Input query:", query)
-        print("Regenerated:", regenerated_query)
-        print("Query returns: ✔", expected_error)
-        print()
-
-    regenerated_query_error = run_query(database, regenerated_query)
-    assert(expected_error == regenerated_query_error)
 
     state = {
             'called': 0,
             'database': database,
-            'expected_error': expected_error,
-            'min_query': regenerated_query,
-            'min_query_len': len(regenerated_query),
-            'parsetree': parsetree.stmt,
+            'parsetree': parsetree,
             'seen': set(),
+            'timeout': timeout,
+            'use_sqlstate': use_sqlstate,
             'verbose': verbose,
             }
 
+    # check database connection
+    check_connection(database)
+    state['expected_error'] = run_query(state, query)
+
+    if verbose:
+        print("Input query:", query)
+        print("Regenerated:", regenerated_query)
+        print("Query returns: ✔", state['expected_error'])
+        print()
+
+    regenerated_query_error = run_query(state, regenerated_query)
+    assert(state['expected_error'] == regenerated_query_error)
+
     reduce_loop(state)
 
-    return state['min_query'], state
+    return RawStream()(state['parsetree']), state
 
 if __name__ == "__main__":
     reduce("", "select 1, moo, 3")

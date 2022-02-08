@@ -1,0 +1,1 @@
+select myaggp05a(a) over (partition by a order by a) from trigger_parted where pg_trigger_depth() <> a limit 40;
