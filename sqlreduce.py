@@ -5,6 +5,7 @@ from pglast.stream import RawStream
 import psycopg2
 from copy import copy, deepcopy
 import time
+import yaml
 
 def getattr_path(obj, path):
     if path == []:
@@ -88,24 +89,60 @@ def try_reduce(state, path, node):
 
     return True
 
+rules_yaml = """
+A_Const:
+    comment: Replace constant with NULL
+    try_null:
+    tests:
+        - select '1,1'::point = '1,1'
+        - SELECT CAST((NULL) AS point) = NULL
+
+A_Expr:
+    comment: Pull up expression subtree
+    recurse:
+        - lexpr
+        - rexpr
+    try_null:
+    pullup:
+        - lexpr
+        - rexpr
+    tests:
+        - select 1+moo
+        - SELECT moo
+
+#CaseExpr:
+#    comment:
+#    try_null:
+#    recurse:
+#        - args
+#        - defresult
+"""
+
+rules = yaml.safe_load(rules_yaml)
+
 def enumerate_paths(node, path=[]):
     """For a node, recursively enumerate all paths that are reduction targets"""
 
     assert node != None
+
+    # the path itself
     yield path
+
+    # now enumerate all subnodes that are interesting to look at as reduction points
+    classname = type(node).__name__
 
     if isinstance(node, tuple):
         for i in range(len(node)):
             for p in enumerate_paths(node[i], path+[i]): yield p
 
-    elif isinstance(node, pglast.ast.A_Const):
-        pass
+    elif classname in rules:
+        rule = rules[classname]
 
-    elif isinstance(node, pglast.ast.A_Expr):
-        if node.lexpr:
-            for p in enumerate_paths(node.lexpr, path+['lexpr']): yield p
-        if node.rexpr:
-            for p in enumerate_paths(node.rexpr, path+['rexpr']): yield p
+        # recurse into subnodes
+        if 'recurse' in rule:
+            for attr in rule['recurse']:
+                if subnode := getattr(node, attr):
+                    for p in enumerate_paths(subnode, path+[attr]): yield p
 
     elif isinstance(node, pglast.ast.CaseExpr):
         if node.args:
@@ -227,6 +264,7 @@ def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
 
     node = getattr_path(state['parsetree'], path)
+    classname = type(node).__name__
 
     if isinstance(node, tuple):
         # try removing the tuple entirely unless it's a CoalesceExpr which doesn't like that
@@ -241,17 +279,26 @@ def reduce_step(state, path):
             for i in range(len(node)):
                 if try_reduce(state, path, node[:i] + node[i+1:]): return True
 
-    # replace constant with NULL
-    elif isinstance(node, pglast.ast.A_Const):
-        if try_reduce(state, path, pglast.ast.Null()): return True
+    elif classname in rules:
+        rule = rules[classname]
+
+        # try replacing the node with NULL
+        if 'try_null' in rule:
+            if try_reduce(state, path, pglast.ast.Null()): return True
+
+        # try pulling up subexpressions
+        if 'recurse' in rule:
+            for attr in rule['recurse']:
+                if subnode := getattr(node, attr):
+                    if try_reduce(state, path, subnode): return True
 
     # replace expression with NULL
-    elif isinstance(node, pglast.ast.A_Expr):
-        if try_reduce(state, path, pglast.ast.Null()): return True
-        if node.lexpr:
-            if try_reduce(state, path, node.lexpr): return True
-        if node.rexpr:
-            if try_reduce(state, path, node.rexpr): return True
+    #elif isinstance(node, pglast.ast.A_Expr):
+    #    if try_reduce(state, path, pglast.ast.Null()): return True
+    #    if node.lexpr:
+    #        if try_reduce(state, path, node.lexpr): return True
+    #    if node.rexpr:
+    #        if try_reduce(state, path, node.rexpr): return True
 
     elif isinstance(node, pglast.ast.BoolExpr):
         for arg in node.args:

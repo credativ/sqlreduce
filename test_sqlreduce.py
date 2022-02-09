@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import pglast
-from sqlreduce import enumerate_paths, run_reduce
+from sqlreduce import enumerate_paths, run_reduce, rules
 
 def test_enumerate():
     p = pglast.parse_sql('select 1')[0].stmt
@@ -44,6 +44,16 @@ def test_select():
     res, _ = run_reduce("select foo('bla', 'bla')")
     assert res == 'SELECT foo(NULL, NULL)'
 
+def test_rules():
+    for classname, rule in rules.items():
+        tests = rule['tests']
+        for test, expected in zip(tests[0::2], tests[1::2]):
+            res, _ = run_reduce(test)
+            if res != expected:
+                raise Exception(f"{classname} test: {test}: expected {expected}, got {res}")
+            print(f"{classname}: {rule['comment']}\n  test: {test}\n   got: {res}")
+
 if __name__ == '__main__':
     test_enumerate()
     test_select()
+    test_rules()
