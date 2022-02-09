@@ -8,9 +8,6 @@ from pglast.stream import IndentedStream
 import sqlreduce
 
 from loguru import logger
-import sys
-logger.add(sys.stderr, colorize=True, backtrace=True, diagnose=True)
-
 @logger.catch
 def main():
     argparser = argparse.ArgumentParser(description="Reduce a SQL query to the minimal query throwing the same error")
@@ -29,9 +26,12 @@ def main():
     else:
         query = args.file.read().rstrip()
 
+    # check database connection
+    sqlreduce.check_connection(args.database)
+
     # reduce query
     start = time.time()
-    min_query, state = sqlreduce.run_reduce(args.database, query, verbose=True, use_sqlstate=args.sqlstate, timeout=args.timeout)
+    min_query, state = sqlreduce.run_reduce(query, database=args.database, verbose=True, use_sqlstate=args.sqlstate, timeout=args.timeout)
     duration = time.time() - start
     qps = len(state['seen']) / duration
 

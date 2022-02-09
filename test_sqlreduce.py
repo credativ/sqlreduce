@@ -22,26 +22,26 @@ def test_enumerate():
 
 def test_select():
     # targetList
-    res, _ = run_reduce('', 'select 1, moo as foo, 3')
+    res, _ = run_reduce('select 1, moo as foo, 3')
     assert res == 'SELECT moo'
 
-    res, _ = run_reduce('', 'select case when moo then 1 end')
+    res, _ = run_reduce('select case when moo then 1 end')
     assert res == 'SELECT moo'
 
-    res, _ = run_reduce('', 'select case when true then 1 else bar end')
+    res, _ = run_reduce('select case when true then 1 else bar end')
     assert res == 'SELECT bar'
 
-    res, _ = run_reduce('', 'select true and (false or bar)')
+    res, _ = run_reduce('select true and (false or bar)')
     assert res == 'SELECT bar'
 
     # fromClause
-    res, _ = run_reduce('', 'select from pg_class, moo')
+    res, _ = run_reduce('select from pg_class, moo')
     assert res == 'SELECT FROM moo'
 
-    res, _ = run_reduce('', 'select from pg_class, (select 1 from bar) b')
+    res, _ = run_reduce('select from pg_class, (select 1 from bar) b')
     assert res == 'SELECT FROM bar'
 
-    res, _ = run_reduce('', "select foo('bla', 'bla')")
+    res, _ = run_reduce("select foo('bla', 'bla')")
     assert res == 'SELECT foo(NULL, NULL)'
 
 if __name__ == '__main__':
