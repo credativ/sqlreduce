@@ -161,10 +161,45 @@ CreateTableAsStmt:
         - create table foo as select 1, 2
         - CREATE TABLE foo AS SELECT NULL, NULL
 
+DeleteStmt:
+    descend:
+        - whereClause
+        - usingClause
+        - returningList
+    remove:
+        - whereClause
+        - usingClause
+        - returningList
+    tests:
+        - delete from foo where bar
+        - DELETE FROM foo
+        - delete from foo using bar
+        - DELETE FROM foo
+        - delete from foo returning bar
+        - DELETE FROM foo
+        - delete from pg_database where bar and foo
+        - DELETE FROM pg_database WHERE bar
+
 DropStmt:
     tests:
         - drop table foo
         - DROP TABLE foo
+
+FuncCall:
+    try_null:
+    recurse_list:
+        - args
+    descend:
+        - over
+    remove:
+        - over
+    tests:
+        - select foo(bar)
+        - SELECT bar
+        - select foo() over ()
+        - SELECT foo()
+        - select lag(1) over (partition by bar, foo)
+        - SELECT lag(1) OVER (PARTITION BY bar)
 
 InsertStmt:
     replace:
@@ -236,6 +271,39 @@ ResTarget: # pulling up val is actually only necessary if 'name' is present, but
         - select foo as bar
         - SELECT foo
 
+SelectStmt:
+    descend:
+        - limitCount
+        - targetList
+        - valuesLists
+        - fromClause
+        - whereClause
+        - withClause
+    replace:
+        - larg
+        - rarg
+    remove:
+        - limitCount
+        - limitOffset
+        - whereClause
+        - valuesLists
+        - withClause
+    tests:
+        - select limit 1
+        - "SELECT "
+        - select offset 1
+        - "SELECT "
+        - select 1
+        - "SELECT "
+        - select foo, bar
+        - SELECT foo
+        - select where true
+        - "SELECT "
+        - select from foo union select from bar
+        - SELECT FROM foo
+        - select from foo, bar
+        - SELECT FROM foo
+
 SubLink:
     replace:
         - subselect
@@ -257,6 +325,18 @@ VariableSetStmt:
     tests:
         - set work_mem = '100MB'
         - SET work_mem TO '100MB'
+
+WindowDef:
+    descend:
+        - partitionClause
+        - orderClause
+    tests:
+        - select count(*) over (partition by bar, foo)
+        - SELECT count(*) OVER (PARTITION BY bar)
+        - select count(*) over (order by bar, foo)
+        - SELECT count(*) OVER (ORDER BY bar)
+        - select count(*) over (partition by bar order by bar, foo)
+        - SELECT count(*) OVER (ORDER BY bar)
 
 """
 
@@ -281,17 +361,11 @@ def enumerate_paths(node, path=[]):
         rule = rules[classname]
 
         # recurse into subnodes
-        if 'recurse' in rule:
-            for attr in rule['recurse']:
-                if subnode := getattr(node, attr):
-                    for p in enumerate_paths(subnode, path+[attr]): yield p
-
-        # recurse into list of subnodes
-        # same code as "recurse" here, the handling is different in reduce_step
-        if 'recurse_list' in rule:
-            for attr in rule['recurse_list']:
-                if subnode := getattr(node, attr):
-                    for p in enumerate_paths(subnode, path+[attr]): yield p
+        for key in ('recurse', 'recurse_list', 'descend'):
+            if key in rule:
+                for attr in rule[key]:
+                    if subnode := getattr(node, attr):
+                        for p in enumerate_paths(subnode, path+[attr]): yield p
 
     elif isinstance(node, pglast.ast.CaseExpr):
         if node.args:
@@ -299,51 +373,11 @@ def enumerate_paths(node, path=[]):
         if node.defresult:
             for p in enumerate_paths(node.defresult, path+['defresult']): yield p
 
-    elif isinstance(node, pglast.ast.DeleteStmt):
-        if node.whereClause:
-            for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
-        if node.usingClause:
-            for p in enumerate_paths(node.usingClause, path+['usingClause']): yield p
-        if node.returningList:
-            for p in enumerate_paths(node.returningList, path+['returningList']): yield p
-
-    elif isinstance(node, pglast.ast.FuncCall):
-        if node.args:
-            # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
-            for i in range(len(node.args)):
-                for p in enumerate_paths(node.args[i], path+['args', i]): yield p
-        if node.over:
-            for p in enumerate_paths(node.over, path+['over']): yield p
-
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
 
-    elif isinstance(node, pglast.ast.SelectStmt):
-        if node.limitCount:
-            for p in enumerate_paths(node.limitCount, path+['limitCount']): yield p
-        if node.targetList:
-            for p in enumerate_paths(node.targetList, path+['targetList']): yield p
-        if node.valuesLists:
-            for p in enumerate_paths(node.valuesLists, path+['valuesLists']): yield p
-        if node.fromClause:
-            for p in enumerate_paths(node.fromClause, path+['fromClause']): yield p
-        if node.whereClause:
-            for p in enumerate_paths(node.whereClause, path+['whereClause']): yield p
-        if node.withClause:
-            for p in enumerate_paths(node.withClause, path+['withClause']): yield p
-        if node.larg:
-            for p in enumerate_paths(node.larg, path+['larg']): yield p
-        if node.rarg:
-            for p in enumerate_paths(node.rarg, path+['rarg']): yield p
-
     elif isinstance(node, pglast.ast.SortBy):
         for p in enumerate_paths(node.node, path+['node']): yield p
-
-    elif isinstance(node, pglast.ast.WindowDef):
-        if node.partitionClause:
-            for p in enumerate_paths(node.partitionClause, path+['partitionClause']): yield p
-        if node.orderClause:
-            for p in enumerate_paths(node.orderClause, path+['orderClause']): yield p
 
     elif isinstance(node, pglast.ast.WithClause):
         for i in range(len(node.ctes)):
@@ -378,11 +412,17 @@ def reduce_step(state, path):
         # TODO: skip "recurse" for that case?
         if 'replace' in rule:
             for attr in rule['replace']:
-                if try_reduce(state, [], getattr(node, attr)): return True
+                if subnode := getattr(node, attr):
+                    if try_reduce(state, [], subnode): return True
 
         # try replacing the node with NULL
         if 'try_null' in rule:
             if try_reduce(state, path, pglast.ast.Null()): return True
+
+        # try removing some attribute
+        if 'remove' in rule:
+            for attr in rule['remove']:
+                if try_reduce(state, path+[attr], None): return True
 
         # try pulling up subexpressions
         if 'recurse' in rule:
@@ -413,46 +453,10 @@ def reduce_step(state, path):
         if node.defresult:
             if try_reduce(state, path, node.defresult): return True
 
-    elif isinstance(node, pglast.ast.DeleteStmt):
-        if node.whereClause:
-            if try_reduce(state, path+['whereClause'], None): return True
-        if node.usingClause:
-            if try_reduce(state, path+['usingClause'], None): return True
-        if node.returningList:
-            if try_reduce(state, path+['returningList'], None): return True
-
-    elif isinstance(node, pglast.ast.FuncCall):
-        if try_reduce(state, path, pglast.ast.Null()): return True
-        if node.args:
-            for arg in node.args:
-                if try_reduce(state, path, arg): return True
-
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
 
-    # select limit foo -> select
-    elif isinstance(node, pglast.ast.SelectStmt):
-        if node.limitCount:
-            if try_reduce(state, path+['limitCount'], None): return True
-        if node.limitOffset:
-            if try_reduce(state, path+['limitOffset'], None): return True
-        if node.whereClause:
-            #if try_reduce(state, path+['whereClause'], pglast.ast.A_Const(pglast.ast.String('true'))): return True
-            if try_reduce(state, path+['whereClause'], None): return True
-        if node.valuesLists:
-            if try_reduce(state, path+['valuesLists'], None): return True
-        if node.withClause:
-            if try_reduce(state, path+['withClause'], None): return True
-        # union/except have larg/rarg, pull up
-        if node.larg:
-            if try_reduce(state, [], node.larg): return True
-        if node.rarg:
-            if try_reduce(state, [], node.rarg): return True
-
     elif isinstance(node, pglast.ast.SortBy):
-        pass
-
-    elif isinstance(node, pglast.ast.WindowDef):
         pass
 
     elif isinstance(node, pglast.ast.WithClause):
