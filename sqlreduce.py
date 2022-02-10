@@ -90,15 +90,13 @@ def try_reduce(state, path, node):
     return True
 
 rules_yaml = """
-A_Const:
-    comment: Replace constant with NULL
+A_Const: # Replace constant with NULL
     try_null:
     tests:
         - select '1,1'::point = '1,1'
         - SELECT CAST((NULL) AS point) = NULL
 
-A_Expr:
-    comment: Pull up expression subtree
+A_Expr: # Pull up expression subtree
     recurse:
         - lexpr
         - rexpr
@@ -111,11 +109,127 @@ A_Expr:
         - SELECT moo
 
 #CaseExpr:
-#    comment:
 #    try_null:
 #    recurse:
 #        - args
 #        - defresult
+
+CoalesceExpr:
+    try_null:
+    recurse_list:
+        - args
+    tests:
+        - select coalesce(1, bar)
+        - SELECT bar
+
+ColumnRef:
+    try_null:
+    tests:
+        - select 'TODO'
+        - "SELECT "
+
+CommonTableExpr:
+    replace:
+        - ctequery
+    recurse:
+        - ctequery
+    tests:
+        - with a as (select moo) select from a
+        - SELECT moo
+
+CreateStmt: # do nothing
+    tests:
+        - create table foo (a int)
+        - CREATE TABLE foo (a integer)
+
+CreateTableAsStmt:
+    replace:
+        - query
+    recurse:
+        - query
+    tests:
+        - create table foo as select 1, moo
+        - SELECT moo
+        - create table foo as select 1, 2
+        - CREATE TABLE foo AS SELECT NULL, NULL
+
+DropStmt:
+    tests:
+        - drop table foo
+        - DROP TABLE foo
+
+InsertStmt:
+    replace:
+        - selectStmt
+    recurse:
+        - selectStmt
+    tests:
+        - insert into bar select from bar
+        - SELECT FROM bar
+        - insert into foo select bar
+        - "INSERT INTO foo SELECT "
+
+"Null": # doesn't actually test if NULL is left alone
+    tests:
+        - select null
+        - "SELECT "
+
+RangeSubselect:
+    replace:
+        - subquery
+    recurse:
+        - subquery
+    tests:
+        - select from (select bar) sub
+        - SELECT bar
+
+RangeTableSample:
+    recurse:
+        - relation
+    tests:
+        - select from bar tablesample system(1)
+        - SELECT FROM bar
+
+RangeVar: # no need to simplify table, we try removing altogether it elsewhere
+    tests:
+        - select from a
+        - SELECT FROM a
+
+RawStmt:
+    recurse:
+        - stmt
+    tests:
+        - select
+        - "SELECT "
+
+ResTarget: # pulling up val is actually only necessary if 'name' is present, but it doesn't hurt
+    recurse:
+        - val
+    tests:
+        - select foo as bar
+        - SELECT foo
+
+SubLink:
+    replace:
+        - subselect
+    recurse:
+        - subselect
+    tests:
+        - select exists(select moo)
+        - SELECT moo
+
+TypeCast:
+    recurse:
+        - arg
+    tests:
+        - select foo::int
+        - SELECT foo
+
+VariableSetStmt:
+    tests:
+        - set work_mem = '100MB'
+        - SET work_mem TO '100MB'
+
 """
 
 rules = yaml.safe_load(rules_yaml)
@@ -144,26 +258,18 @@ def enumerate_paths(node, path=[]):
                 if subnode := getattr(node, attr):
                     for p in enumerate_paths(subnode, path+[attr]): yield p
 
+        # recurse into list of subnodes
+        # same code as "recurse" here, the handling is different in reduce_step
+        if 'recurse_list' in rule:
+            for attr in rule['recurse_list']:
+                if subnode := getattr(node, attr):
+                    for p in enumerate_paths(subnode, path+[attr]): yield p
+
     elif isinstance(node, pglast.ast.CaseExpr):
         if node.args:
             for p in enumerate_paths(node.args, path+['args']): yield p
         if node.defresult:
             for p in enumerate_paths(node.defresult, path+['defresult']): yield p
-
-    elif isinstance(node, pglast.ast.CoalesceExpr):
-        for p in enumerate_paths(node.args, path+['args']): yield p
-
-    elif isinstance(node, pglast.ast.ColumnRef):
-        pass
-
-    elif isinstance(node, pglast.ast.CommonTableExpr):
-        for p in enumerate_paths(node.ctequery, path+['ctequery']): yield p
-
-    elif isinstance(node, pglast.ast.CreateStmt):
-        pass
-
-    elif isinstance(node, pglast.ast.CreateTableAsStmt):
-        for p in enumerate_paths(node.query, path+['query']): yield p
 
     elif isinstance(node, pglast.ast.DeleteStmt):
         if node.whereClause:
@@ -173,9 +279,6 @@ def enumerate_paths(node, path=[]):
         if node.returningList:
             for p in enumerate_paths(node.returningList, path+['returningList']): yield p
 
-    elif isinstance(node, pglast.ast.DropStmt):
-        pass
-
     elif isinstance(node, pglast.ast.FuncCall):
         if node.args:
             # recurse into individual arguments (do not recurse into "args" since we don't want to shorten the tuple)
@@ -184,38 +287,16 @@ def enumerate_paths(node, path=[]):
         if node.over:
             for p in enumerate_paths(node.over, path+['over']): yield p
 
-    elif isinstance(node, pglast.ast.InsertStmt):
-        if node.selectStmt:
-            for p in enumerate_paths(node.selectStmt, path+['selectStmt']): yield p
-
     elif isinstance(node, pglast.ast.JoinExpr):
         for p in enumerate_paths(node.larg, path+['larg']): yield p
         for p in enumerate_paths(node.rarg, path+['rarg']): yield p
         for p in enumerate_paths(node.quals, path+['quals']): yield p
-
-    elif isinstance(node, pglast.ast.Null):
-        pass
 
     elif isinstance(node, pglast.ast.NullTest):
         for p in enumerate_paths(node.arg, path+['arg']): yield p
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
-
-    elif isinstance(node, pglast.ast.RangeSubselect):
-        for p in enumerate_paths(node.subquery, path+['subquery']): yield p
-
-    elif isinstance(node, pglast.ast.RangeTableSample):
-        for p in enumerate_paths(node.relation, path+['relation']): yield p
-
-    elif isinstance(node, pglast.ast.RangeVar):
-        pass
-
-    elif isinstance(node, pglast.ast.RawStmt):
-        for p in enumerate_paths(node.stmt, path+['stmt']): yield p
-
-    elif isinstance(node, pglast.ast.ResTarget):
-        for p in enumerate_paths(node.val, path+['val']): yield p
 
     elif isinstance(node, pglast.ast.SelectStmt):
         if node.limitCount:
@@ -237,15 +318,6 @@ def enumerate_paths(node, path=[]):
 
     elif isinstance(node, pglast.ast.SortBy):
         for p in enumerate_paths(node.node, path+['node']): yield p
-
-    elif isinstance(node, pglast.ast.SubLink):
-        for p in enumerate_paths(node.subselect, path+['subselect']): yield p
-
-    elif isinstance(node, pglast.ast.TypeCast):
-        for p in enumerate_paths(node.arg, path+['arg']): yield p
-
-    elif isinstance(node, pglast.ast.VariableSetStmt):
-        pass
 
     elif isinstance(node, pglast.ast.WindowDef):
         if node.partitionClause:
@@ -282,6 +354,12 @@ def reduce_step(state, path):
     elif classname in rules:
         rule = rules[classname]
 
+        # try running the subquery as new top-level query
+        # TODO: skip "recurse" for that case?
+        if 'replace' in rule:
+            for attr in rule['replace']:
+                if try_reduce(state, [], getattr(node, attr)): return True
+
         # try replacing the node with NULL
         if 'try_null' in rule:
             if try_reduce(state, path, pglast.ast.Null()): return True
@@ -291,6 +369,13 @@ def reduce_step(state, path):
             for attr in rule['recurse']:
                 if subnode := getattr(node, attr):
                     if try_reduce(state, path, subnode): return True
+
+        # try pulling up subexpressions from a list
+        if 'recurse_list' in rule:
+            for attr in rule['recurse_list']:
+                if subnodelist := getattr(node, attr):
+                    for subnode in subnodelist:
+                        if try_reduce(state, path, subnode): return True
 
     # replace expression with NULL
     #elif isinstance(node, pglast.ast.A_Expr):
@@ -304,21 +389,6 @@ def reduce_step(state, path):
         for arg in node.args:
             if try_reduce(state, path, arg): return True
 
-    elif isinstance(node, pglast.ast.CoalesceExpr):
-        if try_reduce(state, path, pglast.ast.Null()): return True
-        for arg in node.args:
-            if try_reduce(state, path, arg): return True
-
-    # replace constant with NULL
-    elif isinstance(node, pglast.ast.ColumnRef):
-        if try_reduce(state, path, pglast.ast.Null()): return True
-
-    elif isinstance(node, pglast.ast.CommonTableExpr):
-        if try_reduce(state, [], node.ctequery): return True
-
-    elif isinstance(node, pglast.ast.CreateTableAsStmt):
-        if try_reduce(state, [], node.query): return True
-
     elif isinstance(node, pglast.ast.CaseExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
         for arg in node.args:
@@ -326,9 +396,6 @@ def reduce_step(state, path):
             if try_reduce(state, path, arg.result): return True
         if node.defresult:
             if try_reduce(state, path, node.defresult): return True
-
-    elif isinstance(node, pglast.ast.CreateStmt):
-        pass
 
     elif isinstance(node, pglast.ast.DeleteStmt):
         if node.whereClause:
@@ -338,19 +405,11 @@ def reduce_step(state, path):
         if node.returningList:
             if try_reduce(state, path+['returningList'], None): return True
 
-    elif isinstance(node, pglast.ast.DropStmt):
-        pass
-
     elif isinstance(node, pglast.ast.FuncCall):
         if try_reduce(state, path, pglast.ast.Null()): return True
         if node.args:
             for arg in node.args:
                 if try_reduce(state, path, arg): return True
-
-    # insert select -> select
-    elif isinstance(node, pglast.ast.InsertStmt):
-        if node.selectStmt:
-            if try_reduce(state, [], node.selectStmt): return True
 
     # pull up join expression
     elif isinstance(node, pglast.ast.JoinExpr):
@@ -358,32 +417,11 @@ def reduce_step(state, path):
         if try_reduce(state, path, node.rarg): return True
         # TODO: pull up quals?
 
-    elif isinstance(node, pglast.ast.Null):
-        pass
-
     elif isinstance(node, pglast.ast.NullTest):
         if try_reduce(state, path, node.arg): return True
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
-
-    # run subselect isolated
-    elif isinstance(node, pglast.ast.RangeSubselect):
-        if try_reduce(state, [], node.subquery): return True
-
-    elif isinstance(node, pglast.ast.RangeTableSample):
-        if try_reduce(state, path, node.relation): return True
-
-    elif isinstance(node, pglast.ast.RangeVar):
-        pass # no need to simplify table, we try removing altogether it elsewhere
-
-    elif isinstance(node, pglast.ast.RawStmt):
-        pass
-
-    # select foo as bar -> select foo
-    elif isinstance(node, pglast.ast.ResTarget):
-        if node.name:
-            if try_reduce(state, path, node.val): return True
 
     # select limit foo -> select
     elif isinstance(node, pglast.ast.SelectStmt):
@@ -407,21 +445,10 @@ def reduce_step(state, path):
     elif isinstance(node, pglast.ast.SortBy):
         pass
 
-    # try (subquery) and exists(select) standalone
-    elif isinstance(node, pglast.ast.SubLink):
-        if try_reduce(state, [], node.subselect): return True
-
-    # case(foo as bar) -> foo
-    elif isinstance(node, pglast.ast.TypeCast):
-        if try_reduce(state, path, node.arg): return True
-
     elif isinstance(node, pglast.ast.WindowDef):
         pass
 
     elif isinstance(node, pglast.ast.WithClause):
-        pass
-
-    elif isinstance(node, pglast.ast.VariableSetStmt):
         pass
 
     else:

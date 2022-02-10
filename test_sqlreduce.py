@@ -46,12 +46,16 @@ def test_select():
 
 def test_rules():
     for classname, rule in rules.items():
+        print(f"{classname}:")
         tests = rule['tests']
+        if tests is None:
+            raise Exception(f"{classname} is missing tests")
         for test, expected in zip(tests[0::2], tests[1::2]):
+            print("  test:", test)
             res, _ = run_reduce(test)
             if res != expected:
                 raise Exception(f"{classname} test: {test}: expected {expected}, got {res}")
-            print(f"{classname}: {rule['comment']}\n  test: {test}\n   got: {res}")
+            print("   got:", res)
 
 if __name__ == '__main__':
     test_enumerate()
