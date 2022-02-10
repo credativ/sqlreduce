@@ -97,15 +97,23 @@ A_Const: # Replace constant with NULL
         - SELECT CAST((NULL) AS point) = NULL
 
 A_Expr: # Pull up expression subtree
+    try_null:
     recurse:
         - lexpr
         - rexpr
-    try_null:
     pullup:
         - lexpr
         - rexpr
     tests:
         - select 1+moo
+        - SELECT moo
+
+BoolExpr:
+    try_null:
+    recurse_list:
+        - args
+    tests:
+        - select moo and foo
         - SELECT moo
 
 #CaseExpr:
@@ -169,10 +177,28 @@ InsertStmt:
         - insert into foo select bar
         - "INSERT INTO foo SELECT "
 
+JoinExpr: # TODO: pull up quals correctly
+    recurse:
+        - larg
+        - rarg
+        - quals
+    tests:
+        - select from a join b on true
+        - SELECT FROM a
+        - select from pg_database join pg_database on moo
+        - SELECT FROM pg_database INNER JOIN pg_database ON NULL
+
 "Null": # doesn't actually test if NULL is left alone
     tests:
         - select null
         - "SELECT "
+
+NullTest:
+    recurse:
+        - arg
+    tests:
+        - select moo is null
+        - SELECT moo
 
 RangeSubselect:
     replace:
@@ -203,6 +229,7 @@ RawStmt:
         - "SELECT "
 
 ResTarget: # pulling up val is actually only necessary if 'name' is present, but it doesn't hurt
+    try_null:
     recurse:
         - val
     tests:
@@ -219,6 +246,7 @@ SubLink:
         - SELECT moo
 
 TypeCast:
+    try_null:
     recurse:
         - arg
     tests:
@@ -286,14 +314,6 @@ def enumerate_paths(node, path=[]):
                 for p in enumerate_paths(node.args[i], path+['args', i]): yield p
         if node.over:
             for p in enumerate_paths(node.over, path+['over']): yield p
-
-    elif isinstance(node, pglast.ast.JoinExpr):
-        for p in enumerate_paths(node.larg, path+['larg']): yield p
-        for p in enumerate_paths(node.rarg, path+['rarg']): yield p
-        for p in enumerate_paths(node.quals, path+['quals']): yield p
-
-    elif isinstance(node, pglast.ast.NullTest):
-        for p in enumerate_paths(node.arg, path+['arg']): yield p
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
@@ -385,10 +405,6 @@ def reduce_step(state, path):
     #    if node.rexpr:
     #        if try_reduce(state, path, node.rexpr): return True
 
-    elif isinstance(node, pglast.ast.BoolExpr):
-        for arg in node.args:
-            if try_reduce(state, path, arg): return True
-
     elif isinstance(node, pglast.ast.CaseExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
         for arg in node.args:
@@ -410,15 +426,6 @@ def reduce_step(state, path):
         if node.args:
             for arg in node.args:
                 if try_reduce(state, path, arg): return True
-
-    # pull up join expression
-    elif isinstance(node, pglast.ast.JoinExpr):
-        if try_reduce(state, path, node.larg): return True
-        if try_reduce(state, path, node.rarg): return True
-        # TODO: pull up quals?
-
-    elif isinstance(node, pglast.ast.NullTest):
-        if try_reduce(state, path, node.arg): return True
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
