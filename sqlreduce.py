@@ -89,6 +89,48 @@ def try_reduce(state, path, node):
 
     return True
 
+"""
+rules_yaml: what to do when visiting a node type
+
+When a parse tree is to be reduced, the enumerate_paths() function first
+recursively visits all nodes to discover all nodes that are worth looking at
+(pre-order DFS). The result is an iterator yielding paths (= arrays for input
+to getattr_path/setattr_path) from the root to the node in question.
+
+For each of the discovered nodes, try_reduce() is called, which can then decide what
+reduction step to apply. Possible steps are:
+    * replace node with NULL (select 1 -> select NULL)
+    * replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
+    * pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
+    * pull up elements of a list of subnodes (select a and b -> select a, select b)
+    * replace entire tree with subnode (select ... (subquery) -> subquery)
+    * doing nothing with this node
+
+If the reduction was successful (the reduced query yields the same result/error
+as the original one), the parse tree to be reduced is replaced with the new
+tree, and the path enumeration restarts at the root node. If none of the
+enumerated nodes could be reduced, we are done and the current parse tree is
+the minimal query.
+
+Since each node (more precisely: each node attribute) can be reduced at most
+once, and we are repeating the process until there are no more nodes to be
+reduced, the complexity of the algorithm is O(Nodes²) (since O(Nodes) =
+O(Attributes)). In practise, the algorithm is very fast since we are starting
+reduction at the root and many steps will remove whole subtrees early without
+visiting them.
+
+Possible keys in rules_yaml:
+    * descend: visit these subnodes in enumerate_paths()
+    * try_null: set NULL
+    * remove: set None
+    * recurse: pull up subnodes (implies descend)
+    * recurse_list: pull up from list of subnodes (implies descend)
+    * replace: replace entire tree
+
+Required key in rules_yaml:
+    * tests: List of pairs (query, expected) of test cases
+"""
+
 rules_yaml = """
 A_Const: # Replace constant with NULL
     try_null:
@@ -99,9 +141,6 @@ A_Const: # Replace constant with NULL
 A_Expr: # Pull up expression subtree
     try_null:
     recurse:
-        - lexpr
-        - rexpr
-    pullup:
         - lexpr
         - rexpr
     tests:
@@ -223,8 +262,8 @@ JoinExpr: # TODO: pull up quals correctly
         - select from pg_database join pg_database on moo
         - SELECT FROM pg_database INNER JOIN pg_database ON NULL
 
-"Null": # doesn't actually test if NULL is left alone
-    tests:
+"Null":
+    tests: # doesn't actually test if NULL is left alone
         - select null
         - "SELECT "
 
