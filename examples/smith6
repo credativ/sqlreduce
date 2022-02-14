@@ -1,0 +1,8 @@
+select
+  pg_catalog.array_in(
+    cast(pg_catalog.regoperatorout(
+      cast(cast(null as regoperator) as regoperator)) as cstring),
+    cast((select pronamespace from pg_catalog.pg_proc limit 1 offset 1)
+       as oid),
+    cast(subq_1.pid as int4)) as c0
+from pg_catalog.pg_stat_progress_analyze as subq_1

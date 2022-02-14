@@ -66,6 +66,8 @@ def try_reduce(state, path, node):
 
     parsetree2 = setattr_path(state['parsetree'], path, node)
 
+    if state['debug']:
+        print(parsetree2)
     query = RawStream()(parsetree2)
     state['called'] += 1
     if query in state['seen']:
@@ -154,6 +156,8 @@ BoolExpr:
     tests:
         - select moo and foo
         - SELECT moo
+        - select set_config('a.b', 'blub', true) = 'blub' and set_config('work_mem', current_setting('a.b'), true) = '' and true
+        - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
 
 #CaseExpr:
 #    try_null:
@@ -257,8 +261,8 @@ JoinExpr: # TODO: pull up quals correctly
         - rarg
         - quals
     tests:
-        - select from a join b on true
-        - SELECT FROM a
+        - select from foo join bar on true
+        - SELECT FROM foo
         - select from pg_database join pg_database on moo
         - SELECT FROM pg_database INNER JOIN pg_database ON NULL
 
@@ -292,8 +296,8 @@ RangeTableSample:
 
 RangeVar: # no need to simplify table, we try removing altogether it elsewhere
     tests:
-        - select from a
-        - SELECT FROM a
+        - select from moo
+        - SELECT FROM moo
 
 RawStmt:
     recurse:
@@ -432,11 +436,13 @@ def reduce_step(state, path):
     classname = type(node).__name__
 
     if isinstance(node, tuple):
-        # try removing the tuple entirely unless it's a CoalesceExpr which doesn't like that
+        # try removing the tuple entirely unless it's a BoolExpr or CoalesceExpr which doesn't like that
         # also don't strip the inner layer of a valuesLists(tuple(tuple()))
-        # TODO: move CoalesceExpr to a better place
+        # TODO: move BoolExpr and CoalesceExpr to a better place
         parent = getattr_path(state['parsetree'], path[:-1])
-        if not isinstance(parent, pglast.ast.CoalesceExpr) and not isinstance(parent, tuple):
+        if not isinstance(parent, pglast.ast.BoolExpr) \
+           and not isinstance(parent, pglast.ast.CoalesceExpr) \
+           and not isinstance(parent, tuple):
             if try_reduce(state, path, None): return True
 
         # try removing one tuple element
@@ -517,7 +523,7 @@ def reduce_loop(state):
                 found = True
                 break
 
-def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='100ms'):
+def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='100ms', debug=False):
     """Set up state object for running reduce steps"""
 
     # parse query
@@ -528,6 +534,7 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='1
     state = {
             'called': 0,
             'database': database,
+            'debug': debug,
             'parsetree': parsetree,
             'seen': set(),
             'timeout': timeout,

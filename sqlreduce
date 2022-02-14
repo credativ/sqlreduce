@@ -15,6 +15,7 @@ def main():
     argparser.add_argument("-f", "--file", type=argparse.FileType('r'), default=sys.stdin)
     argparser.add_argument("--sqlstate", action='store_true')
     argparser.add_argument("-t", "--timeout", default='100ms')
+    argparser.add_argument("--debug", action='store_true')
     argparser.add_argument("query", nargs='*')
     args = argparser.parse_args()
 
@@ -31,7 +32,13 @@ def main():
 
     # reduce query
     start = time.time()
-    min_query, state = sqlreduce.run_reduce(query, database=args.database, verbose=True, use_sqlstate=args.sqlstate, timeout=args.timeout)
+    min_query, state = sqlreduce.run_reduce(query,
+            database=args.database,
+            verbose=True,
+            use_sqlstate=args.sqlstate,
+            timeout=args.timeout,
+            debug=args.debug,
+            )
     duration = time.time() - start
     qps = len(state['seen']) / duration
 
