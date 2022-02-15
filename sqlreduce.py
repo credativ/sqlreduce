@@ -372,6 +372,8 @@ SelectStmt:
         - VALUES (moo)
         - select from (values (moo)) sub
         - VALUES (moo)
+        - with moo as (select) select from foo
+        - SELECT FROM foo
 
 SortBy:
     remove:
@@ -387,6 +389,8 @@ SubLink:
     recurse:
         - subselect
     tests:
+        - select (select moo)
+        - SELECT moo
         - select exists(select moo)
         - SELECT moo
 
@@ -415,12 +419,18 @@ WindowDef:
         - select count(*) over (partition by bar order by bar, foo)
         - SELECT count(*) OVER (ORDER BY bar)
 
+WithClause:
+    descend:
+        - ctes
+    tests:
+        - with a(a) as (select 5), whatever as (select), b(b) as (select '') select a = b from a, b
+        - WITH a(a) AS (SELECT 5), b(b) AS (SELECT NULL) SELECT a = b FROM a, b
 """
 
 rules = yaml.safe_load(rules_yaml)
 
 def enumerate_paths(node, path=[]):
-    """For a node, recursively enumerate all paths that are reduction targets"""
+    """For a node, recursively enumerate all subpaths that are reduction targets"""
 
     assert node != None
 
@@ -453,10 +463,6 @@ def enumerate_paths(node, path=[]):
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
 
-    elif isinstance(node, pglast.ast.WithClause):
-        for i in range(len(node.ctes)):
-            for p in enumerate_paths(node.ctes[i], path+['ctes', i]): yield p
-
     else:
         raise Exception("enumerate_paths: don't know what to do with", path, node)
 
@@ -468,13 +474,12 @@ def reduce_step(state, path):
 
     # we are looking at a tuple
     if isinstance(node, tuple):
-        # try removing the tuple entirely unless it's a BoolExpr or CoalesceExpr which doesn't like that
-        # also don't strip the inner layer of a valuesLists(tuple(tuple()))
-        # TODO: move BoolExpr and CoalesceExpr to a better place
+        # try removing the tuple entirely unless in a context that doesn't like empty tuples
         parent = getattr_path(state['parsetree'], path[:-1])
         if not isinstance(parent, pglast.ast.BoolExpr) \
            and not isinstance(parent, pglast.ast.CoalesceExpr) \
-           and not isinstance(parent, tuple):
+           and not isinstance(parent, pglast.ast.WithClause) \
+           and not isinstance(parent, tuple): # don't strip the inner layer of a valuesLists(tuple(tuple()))
             if try_reduce(state, path, None): return True
 
         # try removing one tuple element
@@ -528,9 +533,6 @@ def reduce_step(state, path):
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
-
-    elif isinstance(node, pglast.ast.WithClause):
-        pass
 
     else:
         raise Exception("reduce_step: don't know what to do with", path, node)
