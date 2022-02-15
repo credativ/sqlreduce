@@ -1,5 +1,5 @@
-SQLreduce: Reducing verbose SQL queries to minimal examples
-===========================================================
+SQLreduce: Reduce verbose SQL queries to minimal examples
+=========================================================
 
 [SQLsmith](https://github.com/anse1/sqlsmith) has proven to be an effective
 tool for finding bugs in different areas in the PostgreSQL server and related

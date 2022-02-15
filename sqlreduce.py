@@ -69,6 +69,7 @@ def try_reduce(state, path, node):
     parsetree2 = setattr_path(state['parsetree'], path, node)
 
     if state['debug']:
+        print("Setting", path, "to", node)
         print(parsetree2)
     query = RawStream()(parsetree2)
     state['called'] += 1
@@ -240,6 +241,7 @@ FuncCall:
     try_null:
     recurse_list:
         - args
+        - agg_order
     descend:
         - over
     remove:
@@ -251,6 +253,10 @@ FuncCall:
         - SELECT foo()
         - select lag(1) over (partition by bar, foo)
         - SELECT lag(1) OVER (PARTITION BY bar)
+        - select foo(1 order by moo)
+        - SELECT foo(1)
+        - select count(1 order by moo)
+        - SELECT moo
 
 InsertStmt:
     replace:
@@ -308,7 +314,7 @@ RangeVar: # no need to simplify table, we try removing altogether it elsewhere
         - SELECT FROM moo
 
 RawStmt:
-    recurse:
+    descend:
         - stmt
     tests:
         - select
@@ -325,7 +331,7 @@ ResTarget: # pulling up val is actually only necessary if 'name' is present, but
 SelectStmt:
     descend:
         - limitCount
-        - sortClause
+        - sortClause # TODO: leaves DESC behind when removing sort arg
         - targetList
         - valuesLists
         - fromClause
@@ -360,6 +366,18 @@ SelectStmt:
         - SELECT ORDER BY foo
         - select group by foo, bar
         - SELECT GROUP BY foo
+        - values (1)
+        - "SELECT "
+        - values(1), (moo), (foo)
+        - VALUES (moo)
+
+SortBy:
+    remove:
+        - sortby_dir
+    tests:
+        # TODO: real test needed
+        - select foo(1 order by moo desc)
+        - SELECT foo(1)
 
 SubLink:
     replace:
@@ -433,9 +451,6 @@ def enumerate_paths(node, path=[]):
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
 
-    elif isinstance(node, pglast.ast.SortBy):
-        for p in enumerate_paths(node.node, path+['node']): yield p
-
     elif isinstance(node, pglast.ast.WithClause):
         for i in range(len(node.ctes)):
             for p in enumerate_paths(node.ctes[i], path+['ctes', i]): yield p
@@ -449,6 +464,7 @@ def reduce_step(state, path):
     node = getattr_path(state['parsetree'], path)
     classname = type(node).__name__
 
+    # we are looking at a tuple
     if isinstance(node, tuple):
         # try removing the tuple entirely unless it's a BoolExpr or CoalesceExpr which doesn't like that
         # also don't strip the inner layer of a valuesLists(tuple(tuple()))
@@ -464,6 +480,7 @@ def reduce_step(state, path):
             for i in range(len(node)):
                 if try_reduce(state, path, node[:i] + node[i+1:]): return True
 
+    # we are looking at a class mentioned in rules_yaml
     elif classname in rules:
         rule = rules[classname]
 
@@ -481,7 +498,8 @@ def reduce_step(state, path):
         # try removing some attribute
         if 'remove' in rule:
             for attr in rule['remove']:
-                if try_reduce(state, path+[attr], None): return True
+                if getattr_path(state['parsetree'], path+[attr]) is not None:
+                    if try_reduce(state, path+[attr], None): return True
 
         # try pulling up subexpressions
         if 'recurse' in rule:
@@ -496,14 +514,6 @@ def reduce_step(state, path):
                     for subnode in subnodelist:
                         if try_reduce(state, path, subnode): return True
 
-    # replace expression with NULL
-    #elif isinstance(node, pglast.ast.A_Expr):
-    #    if try_reduce(state, path, pglast.ast.Null()): return True
-    #    if node.lexpr:
-    #        if try_reduce(state, path, node.lexpr): return True
-    #    if node.rexpr:
-    #        if try_reduce(state, path, node.rexpr): return True
-
     elif isinstance(node, pglast.ast.CaseExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
         for arg in node.args:
@@ -514,9 +524,6 @@ def reduce_step(state, path):
 
     elif isinstance(node, pglast.ast.RangeFunction):
         pass # TODO: node structure is weird, check later
-
-    elif isinstance(node, pglast.ast.SortBy):
-        pass
 
     elif isinstance(node, pglast.ast.WithClause):
         pass
@@ -551,7 +558,7 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='1
             'debug': debug,
             'parsetree': parsetree,
             'seen': set(),
-            'terminal': sys.stdout.isatty() and 'TERM' in os.environ and os.environ['TERM'] != 'dumb',
+            'terminal': sys.stdout.isatty() and os.environ.get('TERM') != 'dumb',
             'timeout': timeout,
             'use_sqlstate': use_sqlstate,
             'verbose': verbose,
@@ -563,6 +570,8 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='1
         print("Input query:", query)
         print("Regenerated:", regenerated_query)
         print("Query returns: ✔", state['expected_error'])
+        if state['debug']:
+            print("Parse tree:", state['parsetree'])
         print()
 
     regenerated_query_error = run_query(state, regenerated_query)
