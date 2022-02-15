@@ -5,6 +5,8 @@ from pglast.stream import RawStream
 import psycopg2
 from copy import copy, deepcopy
 import time
+import os
+import sys
 import yaml
 
 def getattr_path(obj, path):
@@ -80,12 +82,18 @@ def try_reduce(state, path, node):
     # if running the reduced query yields a different result, stop recursion here
     if error != state['expected_error']:
         if state['verbose']:
-            print(" ✘", error)
+            if state['terminal']:
+                print(" \033[31m✘\033[0m", error)
+            else:
+                print(" ✘", error)
         return False
 
     # found expected result
     if state['verbose']:
-        print(" ✔")
+        if state['terminal']:
+            print(" \033[32m✔\033[0m")
+        else:
+            print(" ✔")
 
     state['parsetree'] = parsetree2
 
@@ -317,12 +325,14 @@ ResTarget: # pulling up val is actually only necessary if 'name' is present, but
 SelectStmt:
     descend:
         - limitCount
+        - sortClause
         - targetList
         - valuesLists
         - fromClause
         - whereClause
+        - groupClause
         - withClause
-    replace:
+    replace: # union
         - larg
         - rarg
     remove:
@@ -346,6 +356,10 @@ SelectStmt:
         - SELECT FROM foo
         - select from foo, bar
         - SELECT FROM foo
+        - select order by foo, bar
+        - SELECT ORDER BY foo
+        - select group by foo, bar
+        - SELECT GROUP BY foo
 
 SubLink:
     replace:
@@ -537,6 +551,7 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='1
             'debug': debug,
             'parsetree': parsetree,
             'seen': set(),
+            'terminal': sys.stdout.isatty() and 'TERM' in os.environ and os.environ['TERM'] != 'dumb',
             'timeout': timeout,
             'use_sqlstate': use_sqlstate,
             'verbose': verbose,
