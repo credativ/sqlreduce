@@ -548,7 +548,7 @@ def reduce_loop(state):
                 found = True
                 break
 
-def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='100ms', debug=False):
+def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='500ms', debug=False):
     """Set up state object for running reduce steps"""
 
     # parse query
