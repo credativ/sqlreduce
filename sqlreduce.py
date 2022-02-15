@@ -257,6 +257,8 @@ FuncCall:
         - SELECT foo(1)
         - select count(1 order by moo)
         - SELECT moo
+        - select foo(1 + 1)
+        - SELECT foo(1)
 
 InsertStmt:
     replace:
@@ -291,6 +293,16 @@ NullTest:
     tests:
         - select moo is null
         - SELECT moo
+
+RangeFunction:
+    remove:
+        - lateral
+    # TODO: descent into node.functions[0][0]
+    tests:
+        - select from lateral foo()
+        - SELECT FROM foo()
+        - select from foo(1 + 1)
+        - SELECT FROM foo(1 + 1) # FIXME: 1
 
 RangeSubselect:
     replace:
@@ -382,6 +394,8 @@ SortBy:
         # TODO: real test needed
         - select foo(1 order by moo desc)
         - SELECT foo(1)
+        - select avg(1 order by foo)
+        - SELECT foo
 
 SubLink:
     replace:
@@ -460,9 +474,6 @@ def enumerate_paths(node, path=[]):
         if node.defresult:
             for p in enumerate_paths(node.defresult, path+['defresult']): yield p
 
-    elif isinstance(node, pglast.ast.RangeFunction):
-        pass # TODO: node structure is weird, check later
-
     else:
         raise Exception("enumerate_paths: don't know what to do with", path, node)
 
@@ -530,9 +541,6 @@ def reduce_step(state, path):
             if try_reduce(state, path, arg.result): return True
         if node.defresult:
             if try_reduce(state, path, node.defresult): return True
-
-    elif isinstance(node, pglast.ast.RangeFunction):
-        pass # TODO: node structure is weird, check later
 
     else:
         raise Exception("reduce_step: don't know what to do with", path, node)
