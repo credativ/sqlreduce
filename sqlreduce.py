@@ -370,6 +370,8 @@ SelectStmt:
         - "SELECT "
         - values(1), (moo), (foo)
         - VALUES (moo)
+        - select from (values (moo)) sub
+        - VALUES (moo)
 
 SortBy:
     remove:
@@ -489,7 +491,9 @@ def reduce_step(state, path):
         if 'replace' in rule:
             for attr in rule['replace']:
                 if subnode := getattr(node, attr):
-                    if try_reduce(state, [], subnode): return True
+                    # leave top list of RawStmt in place
+                    assert path[1] == 'stmt'
+                    if try_reduce(state, path[:2], subnode): return True
 
         # try replacing the node with NULL
         if 'try_null' in rule:
