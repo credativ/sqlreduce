@@ -7,8 +7,8 @@ import time
 from pglast.stream import IndentedStream
 import sqlreduce
 
-from loguru import logger
-@logger.catch
+#from loguru import logger
+#@logger.catch
 def main():
     argparser = argparse.ArgumentParser(description="Reduce a SQL query to the minimal query throwing the same error")
     argparser.add_argument("-d", "--database", type=str, default="")
@@ -44,7 +44,11 @@ def main():
 
     print()
     print("Minimal query yielding the same error:")
+    if state['terminal']:
+        print("\033[1m", end="")
     print(min_query)
+    if state['terminal']:
+        print("\033[0m", end="")
     print()
     print("Pretty-printed minimal query:")
     print(IndentedStream(comma_at_eoln=True)(state['parsetree']))

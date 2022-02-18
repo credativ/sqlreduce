@@ -158,6 +158,18 @@ A_Expr: # Pull up expression subtree
         - select 1+moo
         - SELECT moo
 
+AlterDatabaseSetStmt:
+    tests:
+        - alter database foo reset all
+        - ALTER DATABASE foo RESET ALL
+
+AlterRoleSetStmt:
+    tests:
+        - alter role foo reset all
+        - ALTER ROLE foo RESET ALL
+        - alter role foo in database bar reset all
+        - ALTER ROLE foo IN DATABASE bar RESET ALL
+
 BoolExpr:
     try_null:
     recurse_list:
@@ -279,6 +291,8 @@ InsertStmt:
     tests:
         - insert into bar select from bar
         - SELECT FROM bar
+        - create table bar(id int); insert into bar values(foo)
+        - VALUES (foo)
         - insert into foo select bar
         - "INSERT INTO foo SELECT "
         - insert into foo values (1) on conflict do nothing
@@ -518,7 +532,9 @@ def enumerate_paths(node, path=[]):
             for p in enumerate_paths(node.defresult, path+['defresult']): yield p
 
     else:
-        raise Exception("enumerate_paths: don't know what to do with", path, node)
+        print("enumerate_paths: don't know what to do with the node at path", path)
+        print(node)
+        print("Please submit this as a bug report")
 
 def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
@@ -588,7 +604,9 @@ def reduce_step(state, path):
             if try_reduce(state, path, node.defresult): return True
 
     else:
-        raise Exception("reduce_step: don't know what to do with", path, node)
+        print("reduce_step: don't know what to do with the node at path", path)
+        print(node)
+        print("Please submit this as a bug report")
 
     # additional actions
     # ON CONFLICT DO UPDATE -> DO NOTHING
@@ -633,7 +651,11 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
     if verbose:
         print("Input query:", query)
         print("Regenerated:", regenerated_query)
-        print("Query returns: ✔", state['expected_error'])
+        print("Query returns:", end=' ')
+        if state['terminal']:
+            print(f"\033[32m✔\033[0m \033[1m{state['expected_error']}\033[0m")
+        else:
+            print("✔", state['expected_error'])
         if state['debug']:
             print("Parse tree:", state['parsetree'])
         print()
