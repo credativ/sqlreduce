@@ -168,6 +168,13 @@ BoolExpr:
         - select set_config('a.b', 'blub', true) = 'blub' and set_config('work_mem', current_setting('a.b'), true) = '' and true
         - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
 
+BooleanTest:
+    recurse:
+        - arg
+    tests:
+        - select foo is true
+        - SELECT foo
+
 #CaseExpr:
 #    try_null:
 #    recurse:
@@ -265,10 +272,16 @@ InsertStmt:
         - selectStmt
     recurse:
         - selectStmt
+    remove:
+        - onConflictClause
+    descend:
+        - onConflictClause
     tests:
         - insert into bar select from bar
         - SELECT FROM bar
         - insert into foo select bar
+        - "INSERT INTO foo SELECT "
+        - insert into foo values (1) on conflict do nothing
         - "INSERT INTO foo SELECT "
 
 JoinExpr: # TODO: pull up quals correctly
@@ -293,6 +306,20 @@ NullTest:
     tests:
         - select moo is null
         - SELECT moo
+
+OnConflictClause:
+    remove:
+        - whereClause
+    descend:
+        - whereClause
+        - targetList
+        # FIXME: targetList must not become empty
+        # FIXME: don't reduce ResTarget so b doesn't end up as "a" or "b"
+    tests:
+        - create table foo(id int primary key); insert into foo values (1) on conflict (id) do update set a=1 where true
+        - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (id) DO UPDATE SET a = NULL
+        - create table foo(id int primary key); insert into foo values (1) on conflict (id) do update set id=1, b=1
+        - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (id) DO UPDATE SET b = NULL
 
 RangeFunction:
     remove:
@@ -421,6 +448,20 @@ VariableSetStmt:
         - set work_mem = '100MB'
         - SET work_mem TO '100MB'
 
+UpdateStmt:
+    remove:
+        - whereClause
+    descend:
+        - whereClause
+        - targetList
+        # FIXME: targetList must not become empty
+        # FIXME: don't reduce ResTarget so b doesn't end up as "a" or "b"
+    tests:
+        - update foo set a=b, c=d
+        - UPDATE foo SET c = NULL
+        - update foo set a=b where true
+        - UPDATE foo SET a = NULL
+
 WindowDef:
     descend:
         - partitionClause
@@ -489,6 +530,8 @@ def reduce_step(state, path):
         parent = getattr_path(state['parsetree'], path[:-1])
         if not isinstance(parent, pglast.ast.BoolExpr) \
            and not isinstance(parent, pglast.ast.CoalesceExpr) \
+           and not isinstance(parent, pglast.ast.OnConflictClause) \
+           and not isinstance(parent, pglast.ast.UpdateStmt) \
            and not isinstance(parent, pglast.ast.WithClause) \
            and not isinstance(parent, tuple): # don't strip the inner layer of a valuesLists(tuple(tuple()))
             if try_reduce(state, path, None): return True
