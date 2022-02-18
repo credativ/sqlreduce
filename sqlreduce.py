@@ -320,6 +320,8 @@ OnConflictClause:
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (id) DO UPDATE SET a = NULL
         - create table foo(id int primary key); insert into foo values (1) on conflict (id) do update set id=1, b=1
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (id) DO UPDATE SET b = NULL
+        - create table foo(id int primary key); insert into foo (id) values (1) on conflict (a) do update set id=1
+        - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo (id) VALUES (NULL) ON CONFLICT (a) DO NOTHING
 
 RangeFunction:
     remove:
@@ -587,6 +589,11 @@ def reduce_step(state, path):
 
     else:
         raise Exception("reduce_step: don't know what to do with", path, node)
+
+    # additional actions
+    # ON CONFLICT DO UPDATE -> DO NOTHING
+    if isinstance(node, pglast.ast.OnConflictClause) and node.action == 2: # OnConflictAction.ONCONFLICT_UPDATE: 2
+        if try_reduce(state, path+['action'], 1): return True
 
 def reduce_loop(state):
     """Try running reduce steps until no reduction is found"""
