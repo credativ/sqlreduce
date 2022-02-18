@@ -109,13 +109,20 @@ recursively visits all nodes to discover all nodes that are worth looking at
 to getattr_path/setattr_path) from the root to the node in question.
 
 For each of the discovered nodes, try_reduce() is called, which can then decide what
-reduction step to apply. Possible steps are:
-    * replace node with NULL (select 1 -> select NULL)
-    * replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
-    * pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
-    * pull up elements of a list of subnodes (select a and b -> select a, select b)
-    * replace entire tree with subnode (select ... (subquery) -> subquery)
+reduction step to apply. Possible steps are configured in rules_yaml:
+    * descend: visit attribute in enumerate_paths()
+    * try_null: replace entire node with NULL (select 1 -> select NULL)
+    * remove: replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
+    * nonempty_tuple: in an attribute containing a list, remove one element (but don't make the list empty)
+    * recurse: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
+      (implies descend)
+    * recurse_list: pull up elements of a list of subnodes (select a and b -> select a, select b)
+      (implies descend)
+    * replace: replace entire tree with subnode (select ... (subquery) -> subquery)
     * doing nothing with this node
+
+Other keys in rules_yaml:
+    * tests: List of pairs (query, expected) of test cases
 
 If the reduction was successful (the reduced query yields the same result/error
 as the original one), the parse tree to be reduced is replaced with the new
@@ -129,17 +136,6 @@ reduced, the complexity of the algorithm is O(Nodes²) (since O(Nodes) =
 O(Attributes)). In practise, the algorithm is very fast since we are starting
 reduction at the root and many steps will remove whole subtrees early without
 visiting them.
-
-Possible keys in rules_yaml:
-    * descend: visit these subnodes in enumerate_paths()
-    * try_null: set NULL
-    * remove: set None
-    * recurse: pull up subnodes (implies descend)
-    * recurse_list: pull up from list of subnodes (implies descend)
-    * replace: replace entire tree
-
-Required key in rules_yaml:
-    * tests: List of pairs (query, expected) of test cases
 """
 
 rules_yaml = """
@@ -399,9 +395,12 @@ SelectStmt:
     remove:
         - limitCount
         - limitOffset
+        - distinctClause
         - whereClause
         - valuesLists
         - withClause
+    nonempty_tuple:
+        - distinctClause
     tests:
         - select limit 1
         - "SELECT "
@@ -429,6 +428,10 @@ SelectStmt:
         - VALUES (moo)
         - with moo as (select) select from foo
         - SELECT FROM foo
+        - select distinct foo
+        - SELECT foo
+        - select distinct on (a, b) NULL
+        - SELECT DISTINCT ON (a) NULL
 
 SortBy:
     remove:
@@ -525,6 +528,14 @@ def enumerate_paths(node, path=[]):
                     if subnode := getattr(node, attr):
                         for p in enumerate_paths(subnode, path+[attr]): yield p
 
+        # recurse directly into elements of tuple
+        if 'nonempty_tuple' in rule:
+            for attr in rule['nonempty_tuple']:
+                if subnode := getattr(node, attr):
+                    assert len(subnode) > 0
+                    for i in range(len(subnode)):
+                        for p in enumerate_paths(subnode[i], path+[attr, i]): yield p
+
     elif isinstance(node, pglast.ast.CaseExpr):
         if node.args:
             for p in enumerate_paths(node.args, path+['args']): yield p
@@ -581,6 +592,14 @@ def reduce_step(state, path):
             for attr in rule['remove']:
                 if getattr_path(state['parsetree'], path+[attr]) is not None:
                     if try_reduce(state, path+[attr], None): return True
+
+        # try removing one tuple element (but don't make the list empty)
+        if 'nonempty_tuple' in rule:
+            for attr in rule['nonempty_tuple']:
+                if subnode := getattr(node, attr):
+                    if len(subnode) > 1:
+                        for i in range(len(subnode)):
+                            if try_reduce(state, path+[attr], subnode[:i] + subnode[i+1:]): return True
 
         # try pulling up subexpressions
         if 'recurse' in rule:

@@ -53,9 +53,10 @@ def test_rules():
         for test, expected in zip(tests[0::2], tests[1::2]):
             print("  test:", test)
             res, _ = run_reduce(test)
-            if res != expected:
-                raise Exception(f"{classname} test: {test}: expected {expected}, got {res}")
             print("   got:", res)
+            if res != expected:
+                print("expected:", expected)
+                raise Exception(f"{classname} test: {test}: expected {expected}, got {res}")
 
 if __name__ == '__main__':
     test_enumerate()
