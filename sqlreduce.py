@@ -119,9 +119,9 @@ reduction step to apply. Possible steps are configured in rules_yaml:
     * remove: replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
     * nonempty_tuple: in an attribute containing a list, remove one element (but don't make the list empty)
       (implies descend)
-    * recurse: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
+    * pullup: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
       (implies descend)
-    * recurse_list: pull up elements of a list of subnodes (select a and b -> select a, select b)
+    * pullup_tuple_elements: pull up elements of a list of subnodes (select a and b -> select a, select b)
       (implies descend)
     * replace: replace entire tree with subnode (select ... (subquery) -> subquery)
     * doing nothing with this node
@@ -152,7 +152,7 @@ A_Const: # Replace constant with NULL
 
 A_Expr: # Pull up expression subtree
     try_null:
-    recurse:
+    pullup:
         - lexpr
         - rexpr
     tests:
@@ -173,7 +173,7 @@ AlterRoleSetStmt:
 
 BoolExpr:
     try_null:
-    recurse_list:
+    pullup_tuple_elements:
         - args
     tests:
         - select moo and foo
@@ -184,7 +184,7 @@ BoolExpr:
         - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
 
 BooleanTest:
-    recurse:
+    pullup:
         - arg
     tests:
         - select foo is true
@@ -192,13 +192,13 @@ BooleanTest:
 
 #CaseExpr:
 #    try_null:
-#    recurse:
+#    pullup:
 #        - args
 #        - defresult
 
 CoalesceExpr:
     try_null:
-    recurse_list:
+    pullup_tuple_elements:
         - args
     tests:
         - select coalesce(1, bar)
@@ -213,7 +213,7 @@ ColumnRef:
 CommonTableExpr:
     replace:
         - ctequery
-    recurse:
+    pullup:
         - ctequery
     tests:
         - with a as (select moo) select from a
@@ -227,7 +227,7 @@ CreateStmt: # do nothing
 CreateTableAsStmt:
     replace:
         - query
-    recurse:
+    pullup:
         - query
     tests:
         - create table foo as select 1, moo
@@ -261,7 +261,7 @@ DropStmt:
 
 FuncCall:
     try_null:
-    recurse_list:
+    pullup_tuple_elements:
         - args
         - agg_order
     descend:
@@ -285,7 +285,7 @@ FuncCall:
 InsertStmt:
     replace:
         - selectStmt
-    recurse:
+    pullup:
         - selectStmt
     remove:
         - onConflictClause
@@ -302,7 +302,7 @@ InsertStmt:
         - "INSERT INTO foo SELECT "
 
 JoinExpr: # TODO: pull up quals correctly
-    recurse:
+    pullup:
         - larg
         - rarg
         - quals
@@ -318,7 +318,7 @@ JoinExpr: # TODO: pull up quals correctly
         - "SELECT "
 
 NullTest:
-    recurse:
+    pullup:
         - arg
     tests:
         - select moo is null
@@ -353,14 +353,14 @@ RangeFunction:
 RangeSubselect:
     replace:
         - subquery
-    recurse:
+    pullup:
         - subquery
     tests:
         - select from (select bar) sub
         - SELECT bar
 
 RangeTableSample:
-    recurse:
+    pullup:
         - relation
     tests:
         - select from bar tablesample system(1)
@@ -380,7 +380,7 @@ RawStmt:
 
 ResTarget: # pulling up val is actually only necessary if 'name' is present, but it doesn't hurt
     try_null:
-    recurse:
+    pullup:
         - val
     tests:
         - select foo as bar
@@ -453,7 +453,7 @@ SortBy:
 SubLink:
     replace:
         - subselect
-    recurse:
+    pullup:
         - subselect
     tests:
         - select (select moo)
@@ -463,7 +463,7 @@ SubLink:
 
 TypeCast:
     try_null:
-    recurse:
+    pullup:
         - arg
     tests:
         - select foo::int
@@ -529,7 +529,7 @@ def enumerate_paths(node, path=[]):
         rule = rules[classname]
 
         # recurse into subnodes
-        for key in ('recurse', 'recurse_list', 'descend'):
+        for key in ('pullup', 'pullup_tuple_elements', 'descend'):
             if key in rule:
                 for attr in rule[key]:
                     if subnode := getattr(node, attr):
@@ -582,7 +582,7 @@ def reduce_step(state, path):
         rule = rules[classname]
 
         # try running the subquery as new top-level query
-        # TODO: skip "recurse" for that case?
+        # TODO: skip "pullup" for that case?
         if 'replace' in rule:
             for attr in rule['replace']:
                 if subnode := getattr(node, attr):
@@ -609,14 +609,14 @@ def reduce_step(state, path):
                             if try_reduce(state, path+[attr], subnode[:i] + subnode[i+1:]): return True
 
         # try pulling up subexpressions
-        if 'recurse' in rule:
-            for attr in rule['recurse']:
+        if 'pullup' in rule:
+            for attr in rule['pullup']:
                 if subnode := getattr(node, attr):
                     if try_reduce(state, path, subnode): return True
 
         # try pulling up subexpressions from a list
-        if 'recurse_list' in rule:
-            for attr in rule['recurse_list']:
+        if 'pullup_tuple_elements' in rule:
+            for attr in rule['pullup_tuple_elements']:
                 if subnodelist := getattr(node, attr):
                     for subnode in subnodelist:
                         if try_reduce(state, path, subnode): return True
