@@ -117,10 +117,8 @@ reduction step to apply. Possible steps are configured in rules_yaml:
     * descend: visit attribute in enumerate_paths()
     * try_null: replace entire node with NULL (select 1 -> select NULL)
     * remove: replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
-    * pullup: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
-      (implies descend)
-    * pullup_tuple_elements: pull up elements of a list of subnodes (select a and b -> select a, select b)
-      (implies descend)
+    * pullup: pull up subnodes. If the subnode is a tuple, pull up individual elements
+      (select a + b -> select a, select b; select func(a, b) -> a, b) (implies descend)
     * replace: replace entire tree with subnode (select ... (subquery) -> subquery)
       (implies descend)
     * doing nothing with this node
@@ -177,7 +175,7 @@ AlterRoleSetStmt:
 
 BoolExpr:
     try_null:
-    pullup_tuple_elements:
+    pullup:
         - args
     tests:
         - select moo and foo
@@ -203,7 +201,7 @@ BooleanTest:
 
 CoalesceExpr:
     try_null:
-    pullup_tuple_elements:
+    pullup:
         - args
     tests:
         - select coalesce(1, bar)
@@ -264,7 +262,7 @@ DropStmt:
 
 FuncCall:
     try_null:
-    pullup_tuple_elements:
+    pullup:
         - args
         - agg_order
     descend:
@@ -534,11 +532,10 @@ def enumerate_paths(node, path=[]):
         rule = rules[classname]
 
         # recurse into subnodes
-        for key in ('pullup', 'descend', 'pullup_tuple_elements', 'replace'):
+        for key in ('descend', 'pullup', 'replace'):
             if key in rule:
                 for attr in rule[key]:
                     if subnode := getattr(node, attr):
-
                         for p in enumerate_paths(subnode, path+[attr]): yield p
 
     elif isinstance(node, pglast.ast.CaseExpr):
@@ -593,16 +590,11 @@ def reduce_step(state, path):
         if 'pullup' in rule:
             for attr in rule['pullup']:
                 if subnode := getattr(node, attr):
+                    # if subnode is a tuple, pull up individual elements
                     if isinstance(subnode, tuple):
                         for subnodeelement in subnode:
                             if try_reduce(state, path, subnodeelement): return True
-                    if try_reduce(state, path, subnode): return True
-
-        # try pulling up subexpressions from a list
-        if 'pullup_tuple_elements' in rule:
-            for attr in rule['pullup_tuple_elements']:
-                if subnodelist := getattr(node, attr):
-                    for subnode in subnodelist:
+                    else:
                         if try_reduce(state, path, subnode): return True
 
     elif isinstance(node, pglast.ast.CaseExpr):
