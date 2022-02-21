@@ -212,7 +212,7 @@ CoalesceExpr:
 ColumnRef:
     try_null:
     tests:
-        - select 'TODO'
+        - select 'foo'
         - "SELECT "
 
 CommonTableExpr:
@@ -320,6 +320,7 @@ JoinExpr: # TODO: pull up quals correctly
         - "SELECT "
 
 NullTest:
+    try_null:
     pullup:
         - arg
     tests:
@@ -391,7 +392,7 @@ SelectStmt:
         - limitCount
         - limitOffset
         - distinctClause
-        - sortClause # TODO: leaves DESC behind when removing sort arg
+        - sortClause
         - targetList
         - valuesLists
         - fromClause
@@ -405,7 +406,7 @@ SelectStmt:
         - limitCount
         - limitOffset
         - distinctClause
-        - sortClause # TODO: leaves DESC behind when removing sort arg
+        - sortClause
         - targetList
         - whereClause
         - valuesLists
@@ -446,13 +447,13 @@ SortBy:
     remove:
         - sortby_dir
     tests:
-        # TODO: real test needed
         - select foo(1 order by moo desc)
         - SELECT foo(1)
         - select avg(1 order by foo)
         - SELECT foo
 
 SubLink:
+    try_null:
     replace:
         - subselect
     tests:
