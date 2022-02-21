@@ -193,11 +193,30 @@ BooleanTest:
         - select foo is true
         - SELECT foo
 
-#CaseExpr:
-#    try_null:
-#    pullup:
-#        - args
-#        - defresult
+CaseExpr:
+    try_null:
+    descend:
+        - args # handled directly in reduce_step
+    pullup:
+        - arg
+        - defresult
+    tests:
+        - select case foo when 1 then 2 else bar end
+        - SELECT foo
+        - select case when moo then 1 else bar end
+        - SELECT moo
+        - select case when true then foo end
+        - SELECT foo
+        - select case when true then 1 else bar end
+        - SELECT bar
+
+CaseWhen:
+    descend:
+        - expr
+        - result
+    tests:
+        - select case when bar then 1 else 2 end
+        - SELECT bar
 
 CoalesceExpr:
     try_null:
@@ -292,7 +311,7 @@ InsertStmt:
         - onConflictClause
         - cols
     descend:
-        - onConflictClause
+        - onConflictClause # special handling in reduce_step
     tests:
         - insert into bar select from bar
         - SELECT FROM bar
@@ -344,6 +363,7 @@ OnConflictClause:
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (a) DO NOTHING
 
 RangeFunction:
+    # .functions handled in enumerate_paths
     remove:
         - lateral
     tests:
@@ -538,21 +558,15 @@ def enumerate_paths(node, path=[]):
                     if subnode := getattr(node, attr):
                         for p in enumerate_paths(subnode, path+[attr]): yield p
 
-    elif isinstance(node, pglast.ast.CaseExpr):
-        if node.args:
-            for p in enumerate_paths(node.args, path+['args']): yield p
-        if node.defresult:
-            for p in enumerate_paths(node.defresult, path+['defresult']): yield p
-
     else:
         print("enumerate_paths: don't know what to do with the node at path", path)
         print(node)
         print("Please submit this as a bug report")
-        if state['debug']:
-            raise Exception("enumerate_paths: don't know what to do with the node at path" + path)
 
     # RangeFunction.functions is ((FuncCall), None), go to inner node directly
     if isinstance(node, pglast.ast.RangeFunction):
+        assert len(node.functions) == 1
+        assert len(node.functions[0]) == 2
         for p in enumerate_paths(node.functions[0][0], path+['functions', 0, 0]): yield p
 
 def reduce_step(state, path):
@@ -601,14 +615,6 @@ def reduce_step(state, path):
                     else:
                         if try_reduce(state, path, subnode): return True
 
-    elif isinstance(node, pglast.ast.CaseExpr):
-        if try_reduce(state, path, pglast.ast.Null()): return True
-        for arg in node.args:
-            if try_reduce(state, path, arg.expr): return True
-            if try_reduce(state, path, arg.result): return True
-        if node.defresult:
-            if try_reduce(state, path, node.defresult): return True
-
     else:
         print("reduce_step: don't know what to do with the node at path", path)
         print(node)
@@ -617,8 +623,15 @@ def reduce_step(state, path):
             raise Exception("reduce_step: don't know what to do with the node at path" + path)
 
     # additional actions
+
+    # case when foo then bar -> foo, bar
+    if isinstance(node, pglast.ast.CaseExpr):
+        for arg in node.args:
+            if try_reduce(state, path, arg.expr): return True
+            if try_reduce(state, path, arg.result): return True
+
     # ON CONFLICT DO UPDATE -> DO NOTHING
-    if isinstance(node, pglast.ast.OnConflictClause) and node.action == 2: # OnConflictAction.ONCONFLICT_UPDATE: 2
+    elif isinstance(node, pglast.ast.OnConflictClause) and node.action == 2: # OnConflictAction.ONCONFLICT_UPDATE: 2
         if try_reduce(state, path+['action'], 1): return True
 
 def reduce_loop(state):
