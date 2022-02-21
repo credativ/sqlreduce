@@ -117,14 +117,17 @@ reduction step to apply. Possible steps are configured in rules_yaml:
     * descend: visit attribute in enumerate_paths()
     * try_null: replace entire node with NULL (select 1 -> select NULL)
     * remove: replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
-    * reduce_nonempty_tuple: in an attribute containing a list, remove one element (but don't make the list empty)
-      (implies descend)
     * pullup: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
       (implies descend)
     * pullup_tuple_elements: pull up elements of a list of subnodes (select a and b -> select a, select b)
       (implies descend)
     * replace: replace entire tree with subnode (select ... (subquery) -> subquery)
     * doing nothing with this node
+
+If the node is a tuple (i.e. not a specific class), and the tuple has more than
+one element, try_reduce() tries to remove one tuple element. (If empty tuples
+make sense in this context, "remove: attr" should be used on the parent node
+next to the rule that descends into the node.)
 
 Other keys in rules_yaml:
     * tests: List of pairs (query, expected) of test cases
@@ -175,8 +178,6 @@ BoolExpr:
     try_null:
     pullup_tuple_elements:
         - args
-    reduce_nonempty_tuple:
-        - args
     tests:
         - select moo and foo
         - SELECT moo
@@ -186,6 +187,7 @@ BoolExpr:
         - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
 
 BooleanTest:
+    try_null:
     pullup:
         - arg
     tests:
@@ -202,11 +204,11 @@ CoalesceExpr:
     try_null:
     pullup_tuple_elements:
         - args
-    reduce_nonempty_tuple:
-        - args
     tests:
         - select coalesce(1, bar)
         - SELECT bar
+        - select coalesce(1, '', 2)
+        - SELECT COALESCE('', 2)
 
 ColumnRef:
     try_null:
@@ -268,13 +270,12 @@ FuncCall:
     pullup_tuple_elements:
         - args
         - agg_order
-    reduce_nonempty_tuple:
-        - agg_order
     descend:
         - over
     remove:
-        - over
+        - args
         - agg_order
+        - over
     tests:
         - select foo(bar)
         - SELECT bar
@@ -335,9 +336,8 @@ OnConflictClause:
     remove:
         - whereClause
     descend:
-        - whereClause
-    reduce_nonempty_tuple:
         - targetList
+        - whereClause
         # FIXME: don't reduce ResTarget so b doesn't end up as "a" or "b"
     tests:
         - create table foo(id int primary key); insert into foo values (1) on conflict (id) do update set a=1 where true
@@ -396,6 +396,8 @@ ResTarget: # pulling up val is actually only necessary if 'name' is present, but
 SelectStmt:
     descend:
         - limitCount
+        - limitOffset
+        - distinctClause
         - sortClause # TODO: leaves DESC behind when removing sort arg
         - targetList
         - valuesLists
@@ -410,11 +412,11 @@ SelectStmt:
         - limitCount
         - limitOffset
         - distinctClause
+        - sortClause # TODO: leaves DESC behind when removing sort arg
+        - targetList
         - whereClause
         - valuesLists
         - withClause
-    reduce_nonempty_tuple:
-        - distinctClause
     tests:
         - select limit 1
         - "SELECT "
@@ -486,7 +488,6 @@ UpdateStmt:
         - whereClause
     descend:
         - whereClause
-    reduce_nonempty_tuple:
         - targetList
         # FIXME: don't reduce ResTarget so b doesn't end up as "a" or "b"
     tests:
@@ -496,6 +497,10 @@ UpdateStmt:
         - UPDATE foo SET a = NULL
 
 WindowDef:
+    # we cannot pull anything up here since we are a sub-node of the actual query
+    remove:
+        - partitionClause
+        - orderClause
     descend:
         - partitionClause
         - orderClause
@@ -508,7 +513,7 @@ WindowDef:
         - SELECT count(*) OVER (ORDER BY bar)
 
 WithClause:
-    reduce_nonempty_tuple:
+    descend:
         - ctes
     tests:
         - with a(a) as (select 5), whatever as (select), b(b) as (select '') select a = b from a, b
@@ -536,20 +541,12 @@ def enumerate_paths(node, path=[]):
         rule = rules[classname]
 
         # recurse into subnodes
-        for key in ('pullup', 'descend'):
+        for key in ('pullup', 'descend', 'pullup_tuple_elements'):
             if key in rule:
                 for attr in rule[key]:
                     if subnode := getattr(node, attr):
-                        for p in enumerate_paths(subnode, path+[attr]): yield p
 
-        # recurse directly into elements of tuple
-        for key in ('pullup_tuple_elements', 'reduce_nonempty_tuple'): # TODO: deduplicate keys?
-            if key in rule:
-                for attr in rule[key]:
-                    if subnode := getattr(node, attr):
-                        assert len(subnode) > 0
-                        for i in range(len(subnode)):
-                            for p in enumerate_paths(subnode[i], path+[attr, i]): yield p
+                        for p in enumerate_paths(subnode, path+[attr]): yield p
 
     elif isinstance(node, pglast.ast.CaseExpr):
         if node.args:
@@ -568,15 +565,9 @@ def reduce_step(state, path):
     node = getattr_path(state['parsetree'], path)
     classname = type(node).__name__
 
-    # we are looking at a tuple
+    # we are looking at a tuple, try removing one tuple element
     if isinstance(node, tuple):
-        # try removing the tuple entirely unless in a context that doesn't like empty tuples
-        parent = getattr_path(state['parsetree'], path[:-1])
-        if not isinstance(parent, tuple): # don't strip the inner layer of a valuesLists(tuple(tuple()))
-            if try_reduce(state, path, None): return True
-
-        # try removing one tuple element
-        if len(node) > 1:
+        if len(node) > 1: # don't remove the only element
             for i in range(len(node)):
                 if try_reduce(state, path, node[:i] + node[i+1:]): return True
 
@@ -607,6 +598,9 @@ def reduce_step(state, path):
         if 'pullup' in rule:
             for attr in rule['pullup']:
                 if subnode := getattr(node, attr):
+                    if isinstance(subnode, tuple):
+                        for subnodeelement in subnode:
+                            if try_reduce(state, path, subnodeelement): return True
                     if try_reduce(state, path, subnode): return True
 
         # try pulling up subexpressions from a list
@@ -615,14 +609,6 @@ def reduce_step(state, path):
                 if subnodelist := getattr(node, attr):
                     for subnode in subnodelist:
                         if try_reduce(state, path, subnode): return True
-
-        # try removing one tuple element (but don't make the list empty)
-        if 'reduce_nonempty_tuple' in rule:
-            for attr in rule['reduce_nonempty_tuple']:
-                if subnode := getattr(node, attr):
-                    if len(subnode) > 1:
-                        for i in range(len(subnode)):
-                            if try_reduce(state, path+[attr], subnode[:i] + subnode[i+1:]): return True
 
     elif isinstance(node, pglast.ast.CaseExpr):
         if try_reduce(state, path, pglast.ast.Null()): return True
