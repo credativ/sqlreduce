@@ -122,6 +122,7 @@ reduction step to apply. Possible steps are configured in rules_yaml:
     * pullup_tuple_elements: pull up elements of a list of subnodes (select a and b -> select a, select b)
       (implies descend)
     * replace: replace entire tree with subnode (select ... (subquery) -> subquery)
+      (implies descend)
     * doing nothing with this node
 
 If the node is a tuple (i.e. not a specific class), and the tuple has more than
@@ -219,8 +220,6 @@ ColumnRef:
 CommonTableExpr:
     replace:
         - ctequery
-    pullup:
-        - ctequery
     tests:
         - with a as (select moo) select from a
         - SELECT moo
@@ -232,8 +231,6 @@ CreateStmt: # do nothing
 
 CreateTableAsStmt:
     replace:
-        - query
-    pullup:
         - query
     tests:
         - create table foo as select 1, moo
@@ -292,8 +289,6 @@ FuncCall:
 
 InsertStmt:
     replace:
-        - selectStmt
-    pullup:
         - selectStmt
     remove:
         - onConflictClause
@@ -359,8 +354,6 @@ RangeFunction:
 
 RangeSubselect:
     replace:
-        - subquery
-    pullup:
         - subquery
     tests:
         - select from (select bar) sub
@@ -462,8 +455,6 @@ SortBy:
 SubLink:
     replace:
         - subselect
-    pullup:
-        - subselect
     tests:
         - select (select moo)
         - SELECT moo
@@ -541,7 +532,7 @@ def enumerate_paths(node, path=[]):
         rule = rules[classname]
 
         # recurse into subnodes
-        for key in ('pullup', 'descend', 'pullup_tuple_elements'):
+        for key in ('pullup', 'descend', 'pullup_tuple_elements', 'replace'):
             if key in rule:
                 for attr in rule[key]:
                     if subnode := getattr(node, attr):
@@ -558,6 +549,8 @@ def enumerate_paths(node, path=[]):
         print("enumerate_paths: don't know what to do with the node at path", path)
         print(node)
         print("Please submit this as a bug report")
+        if state['debug']:
+            raise Exception("enumerate_paths: don't know what to do with the node at path" + path)
 
 def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
@@ -576,7 +569,7 @@ def reduce_step(state, path):
         rule = rules[classname]
 
         # try running the subquery as new top-level query
-        # TODO: skip "pullup" for that case?
+        # TODO: try pulling up to intermediate levels?
         if 'replace' in rule:
             for attr in rule['replace']:
                 if subnode := getattr(node, attr):
@@ -622,6 +615,8 @@ def reduce_step(state, path):
         print("reduce_step: don't know what to do with the node at path", path)
         print(node)
         print("Please submit this as a bug report")
+        if state['debug']:
+            raise Exception("reduce_step: don't know what to do with the node at path" + path)
 
     # additional actions
     # ON CONFLICT DO UPDATE -> DO NOTHING
