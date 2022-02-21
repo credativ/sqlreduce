@@ -427,8 +427,10 @@ SelectStmt:
         - distinctClause
         - sortClause
         - targetList
-        - whereClause
         - valuesLists
+        - fromClause
+        - whereClause
+        - groupClause
         - withClause
     tests:
         - select limit 1
@@ -441,6 +443,8 @@ SelectStmt:
         - SELECT foo
         - select where true
         - "SELECT "
+        - select 1 from pg_database where foo
+        - SELECT WHERE foo
         - select from foo union select from bar
         - SELECT FROM foo
         - select from foo, bar
