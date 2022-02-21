@@ -292,6 +292,7 @@ InsertStmt:
         - selectStmt
     remove:
         - onConflictClause
+        - cols
     descend:
         - onConflictClause
     tests:
@@ -299,7 +300,7 @@ InsertStmt:
         - SELECT FROM bar
         - create table bar(id int); insert into bar values(foo)
         - VALUES (foo)
-        - insert into foo select bar
+        - insert into foo (id) select bar
         - "INSERT INTO foo SELECT "
         - insert into foo values (1) on conflict do nothing
         - "INSERT INTO foo SELECT "
@@ -330,6 +331,7 @@ NullTest:
 OnConflictClause:
     remove:
         - whereClause
+        - infer # works only with DO NOTHING
     descend:
         - targetList
         - whereClause
@@ -340,7 +342,7 @@ OnConflictClause:
         - create table foo(id int primary key); insert into foo values (1) on conflict (id) do update set id=1, b=1
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (id) DO UPDATE SET b = NULL
         - create table foo(id int primary key); insert into foo (id) values (1) on conflict (a) do update set id=1
-        - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo (id) VALUES (NULL) ON CONFLICT (a) DO NOTHING
+        - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (a) DO NOTHING
 
 RangeFunction:
     remove:
