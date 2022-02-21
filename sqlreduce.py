@@ -346,12 +346,11 @@ OnConflictClause:
 RangeFunction:
     remove:
         - lateral
-    # TODO: descent into node.functions[0][0]
     tests:
         - select from lateral foo()
         - SELECT FROM foo()
         - select from foo(1 + 1)
-        - SELECT FROM foo(1 + 1) # FIXME: 1
+        - SELECT FROM foo(1)
 
 RangeSubselect:
     replace:
@@ -551,6 +550,10 @@ def enumerate_paths(node, path=[]):
         print("Please submit this as a bug report")
         if state['debug']:
             raise Exception("enumerate_paths: don't know what to do with the node at path" + path)
+
+    # RangeFunction.functions is ((FuncCall), None), go to inner node directly
+    if isinstance(node, pglast.ast.RangeFunction):
+        for p in enumerate_paths(node.functions[0][0], path+['functions', 0, 0]): yield p
 
 def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
