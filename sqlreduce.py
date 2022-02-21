@@ -74,6 +74,8 @@ def try_reduce(state, path, node):
     query = RawStream()(parsetree2)
     state['called'] += 1
     if query in state['seen']:
+        if state['debug']:
+            print('Query', query, 'was seen before, skipping\n')
         return False
     state['seen'].add(query)
     if state['verbose']:
@@ -87,6 +89,7 @@ def try_reduce(state, path, node):
                 print(" \033[31m✘\033[0m", error)
             else:
                 print(" ✘", error)
+            if state['debug']: print()
         return False
 
     # found expected result
@@ -95,6 +98,7 @@ def try_reduce(state, path, node):
             print(" \033[32m✔\033[0m")
         else:
             print(" ✔")
+        if state['debug']: print()
 
     state['parsetree'] = parsetree2
 
@@ -114,6 +118,7 @@ reduction step to apply. Possible steps are configured in rules_yaml:
     * try_null: replace entire node with NULL (select 1 -> select NULL)
     * remove: replace a specific attribute with None (select limitCount=1 -> select limitCount=None)
     * nonempty_tuple: in an attribute containing a list, remove one element (but don't make the list empty)
+      (implies descend)
     * recurse: pull up subnodes (select a + b -> select a, select b; select func(a) -> a)
       (implies descend)
     * recurse_list: pull up elements of a list of subnodes (select a and b -> select a, select b)
@@ -173,6 +178,8 @@ BoolExpr:
     tests:
         - select moo and foo
         - SELECT moo
+        - select true and (foo or false)
+        - SELECT foo
         - select set_config('a.b', 'blub', true) = 'blub' and set_config('work_mem', current_setting('a.b'), true) = '' and true
         - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
 

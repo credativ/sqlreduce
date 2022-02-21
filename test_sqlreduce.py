@@ -55,7 +55,7 @@ def test_rules():
             res, _ = run_reduce(test)
             print("   got:", res)
             if res != expected:
-                print("expected:", expected)
+                print("expect:", expected)
                 raise Exception(f"{classname} test: {test}: expected {expected}, got {res}")
 
 if __name__ == '__main__':
