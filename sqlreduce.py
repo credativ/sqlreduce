@@ -328,16 +328,19 @@ InsertStmt:
         - insert into foo values (1) on conflict do nothing
         - "INSERT INTO foo SELECT "
 
-JoinExpr: # TODO: pull up quals correctly
+JoinExpr:
     pullup:
         - larg
         - rarg
-        - quals
+    descend:
+        - quals # pulled up in reduce_step
     tests:
         - select from foo join bar on true
         - SELECT FROM foo
         - select from pg_database join pg_database on moo
         - SELECT FROM pg_database INNER JOIN pg_database ON NULL
+        - select from pg_database a join pg_database b on foo
+        - SELECT foo
 
 "Null":
     tests: # doesn't actually test if NULL is left alone
@@ -639,6 +642,12 @@ def reduce_step(state, path):
         for arg in node.args:
             if try_reduce(state, path, arg.expr): return True
             if try_reduce(state, path, arg.result): return True
+
+    # a JOIN b ON foo -> (SELECT foo) AS sub
+    elif isinstance(node, pglast.ast.JoinExpr) and node.quals:
+        subselect = pglast.ast.RangeSubselect(subquery=pglast.ast.SelectStmt(targetList=(node.quals,)),
+                                              alias=pglast.ast.Alias('sub'))
+        if try_reduce(state, path, subselect): return True
 
     # ON CONFLICT DO UPDATE -> DO NOTHING
     elif isinstance(node, pglast.ast.OnConflictClause) and node.action == 2: # OnConflictAction.ONCONFLICT_UPDATE: 2
