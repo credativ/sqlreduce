@@ -158,8 +158,14 @@ A_Expr: # Pull up expression subtree
         - lexpr
         - rexpr
     tests:
-        - select 1+moo
+        - select 1 + moo
         - SELECT moo
+        - select foo between 2 and 3
+        - SELECT foo
+        - select 1 between moo and 3
+        - SELECT moo
+        - select 1 between 2 and bar
+        - SELECT bar
 
 AlterDatabaseSetStmt:
     tests:
@@ -685,8 +691,14 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
             print("Parse tree:", state['parsetree'])
         print()
 
+    state['seen'].add(regenerated_query)
     regenerated_query_error = run_query(state, regenerated_query)
-    assert(state['expected_error'] == regenerated_query_error)
+    if state['expected_error'] != regenerated_query_error:
+        print("The original query and the parsed and regenerated query do not return the same result state.")
+        print("The query is either not stable, or we have found a parser/generator bug.")
+        print("We'll proceed anyway, but the result is probably bogus.")
+        print("Regenerated query returns:", regenerated_query_error)
+        print()
 
     reduce_loop(state)
 
