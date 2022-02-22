@@ -23,7 +23,7 @@ def test_enumerate():
 def test_select():
     # targetList
     res, _ = run_reduce('select 1, moo as foo, 3')
-    assert res == 'SELECT moo'
+    assert res == 'SELECT moo AS foo'
 
     res, _ = run_reduce('select case when moo then 1 end')
     assert res == 'SELECT moo'

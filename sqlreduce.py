@@ -146,6 +146,14 @@ visiting them.
 """
 
 rules_yaml = """
+A_ArrayExpr:
+    try_null:
+    pullup:
+        - elements
+    tests:
+        - select array[2, foo]
+        - SELECT foo
+
 A_Const: # Replace constant with NULL
     try_null:
     tests:
@@ -167,10 +175,30 @@ A_Expr: # Pull up expression subtree
         - select 1 between 2 and bar
         - SELECT bar
 
+A_Indirection:
+    pullup:
+        - arg
+    tests:
+        - select foo[2]
+        - SELECT foo
+        # TODO: pull up indirection part?
+        - select (select array[1])[foo]
+        - SELECT (SELECT ARRAY[NULL])[foo]
+
 AlterDatabaseSetStmt:
     tests:
         - alter database foo reset all
         - ALTER DATABASE foo RESET ALL
+
+AlterDomainStmt:
+    tests:
+        - alter domain moo add check (value <> '')
+        - ALTER DOMAIN moo ADD CHECK (value <> '')
+
+AlterOwnerStmt:
+    tests:
+        - alter large object 42 owner to moo
+        - ALTER LARGE OBJECT 42 OWNER TO moo
 
 AlterRoleSetStmt:
     tests:
@@ -178,6 +206,16 @@ AlterRoleSetStmt:
         - ALTER ROLE foo RESET ALL
         - alter role foo in database bar reset all
         - ALTER ROLE foo IN DATABASE bar RESET ALL
+
+AlterSeqStmt:
+    tests:
+        - alter sequence foo restart 1
+        - ALTER SEQUENCE foo RESTART WITH 1
+
+AlterTableStmt:
+    tests:
+        - alter table foo drop column bar
+        - ALTER TABLE foo DROP COLUMN bar
 
 BoolExpr:
     try_null:
@@ -240,6 +278,11 @@ ColumnRef:
         - select 'foo'
         - "SELECT "
 
+CommentStmt:
+    tests:
+        - comment on table foo is 'bar'
+        - COMMENT ON TABLE foo IS 'bar'
+
 CommonTableExpr:
     replace:
         - ctequery
@@ -247,10 +290,75 @@ CommonTableExpr:
         - with a as (select moo) select from a
         - SELECT moo
 
-CreateStmt: # do nothing
+CompositeTypeStmt:
+    tests:
+        - create type foo as (a text, b integer, c timestamp)
+        - CREATE TYPE foo AS (a text,  b integer,  c timestamp)
+
+CopyStmt:
+    replace:
+        - query
+    tests:
+        - copy (select foo) to 'bla'
+        - SELECT foo
+
+CreateConversionStmt:
+    tests:
+        - create conversion foo for 'LATIN1' to 'UTF8' from iso8859_1_to_utf8
+        - CREATE CONVERSION foo FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8
+
+CreatedbStmt:
+    tests:
+        - create database foo
+        - CREATE DATABASE foo
+
+CreateDomainStmt:
+    tests:
+        - create domain foo as int not null
+        - CREATE DOMAIN foo AS integer NOT NULL
+
+CreateFunctionStmt:
+    tests:
+        - create function moo() returns void as $$ select 1 $$ language sql
+        - CREATE FUNCTION moo() RETURNS void AS $$ select 1 $$ LANGUAGE sql
+
+CreatePolicyStmt:
+    descend:
+        - qual
+    tests:
+        - create policy foo ON bar for select using (moo % 2 = 0)
+        - CREATE POLICY foo ON bar AS PERMISSIVE FOR select TO PUBLIC USING (NULL)
+
+CreateRoleStmt:
+    tests:
+        - create role foo
+        - CREATE ROLE foo
+
+CreateSeqStmt:
+    tests:
+        - create sequence foo
+        - CREATE SEQUENCE foo
+
+CreateTrigStmt:
+    tests:
+        - create trigger foo before insert on bar execute procedure moo()
+        - CREATE TRIGGER foo BEFORE INSERT ON bar FOR EACH STATEMENT EXECUTE PROCEDURE moo()
+
+CreateSchemaStmt:
+    descend:
+        - schemaElts
+    tests:
+        - create schema foo create table bar1 partition of moo for values in (1) create table bar2 partition of moo for values in (2)
+        - CREATE SCHEMA foo CREATE TABLE bar2 PARTITION OF moo  FOR VALUES IN (2)
+
+CreateStmt:
+    remove:
+        - partspec
     tests:
         - create table foo (a int)
         - CREATE TABLE foo (a integer)
+        - create table foo (id int) partition by list(id)
+        - CREATE TABLE foo (id integer)
 
 CreateTableAsStmt:
     replace:
@@ -260,6 +368,23 @@ CreateTableAsStmt:
         - SELECT moo
         - create table foo as select 1, 2
         - CREATE TABLE foo AS SELECT NULL, NULL
+
+DeallocateStmt:
+    tests:
+        - deallocate bar
+        - DEALLOCATE PREPARE bar
+
+DeclareCursorStmt:
+    replace:
+        - query
+    tests:
+        - declare foo cursor for select bar
+        - SELECT bar
+
+DefineStmt:
+    tests:
+        - create aggregate moo (*) (sfunc = stfnp, stype = int4[], finalfunc = ffp, initcond = '{}')
+        - CREATE AGGREGATE moo (*) (sfunc = stfnp, stype = int4[], finalfunc = ffp, initcond = '{}')
 
 DeleteStmt:
     descend:
@@ -280,10 +405,54 @@ DeleteStmt:
         - delete from pg_database where bar and foo
         - DELETE FROM pg_database WHERE bar
 
+DiscardStmt:
+    tests:
+        - discard all
+        - DISCARD ALL
+
+DoStmt:
+    tests:
+        - do $$ begin end $$
+        - DO $$ begin end $$
+
+DropdbStmt:
+    tests:
+        - drop database foo
+        - DROP DATABASE foo
+
+DropRoleStmt:
+    tests:
+        - drop role moo
+        - DROP ROLE moo
+
 DropStmt:
     tests:
         - drop table foo
         - DROP TABLE foo
+
+ExecuteStmt:
+    descend:
+        - params
+    tests:
+        - prepare foo as select $1; execute foo(bar + 1)
+        - PREPARE foo AS SELECT $1; EXECUTE foo(bar)
+
+ExplainStmt:
+    # we could pull up/replace the query, but let's keep it in EXPLAIN scope
+    descend:
+        - query
+    remove:
+        - options
+    tests:
+        - explain select from foo, bar
+        - EXPLAIN SELECT FROM foo
+        - explain (analyze) select from foo
+        - EXPLAIN SELECT FROM foo
+
+FetchStmt:
+    tests:
+        - fetch all in foo
+        - FETCH ALL foo
 
 FuncCall:
     try_null:
@@ -309,6 +478,16 @@ FuncCall:
         - SELECT moo
         - select foo(1 + 1)
         - SELECT foo(1)
+
+GrantStmt:
+    tests:
+        - grant select on foo to bar
+        - GRANT SELECT ON TABLE foo TO bar
+
+IndexStmt:
+    tests:
+        - create index on foo(bar)
+        - CREATE INDEX ON foo (bar)
 
 InsertStmt:
     replace:
@@ -342,6 +521,11 @@ JoinExpr:
         - select from pg_database a join pg_database b on foo
         - SELECT foo
 
+LockStmt:
+    tests:
+        - lock foo
+        - LOCK foo IN ACCESS EXCLUSIVE MODE
+
 "Null":
     tests: # doesn't actually test if NULL is left alone
         - select null
@@ -371,6 +555,18 @@ OnConflictClause:
         - create table foo(id int primary key); insert into foo (id) values (1) on conflict (a) do update set id=1
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (a) DO NOTHING
 
+ParamRef:
+    tests:
+        - select $1
+        - SELECT $1
+
+PrepareStmt:
+    replace:
+        - query
+    tests:
+        - prepare foo as select from bar, moo
+        - SELECT FROM bar
+
 RangeFunction:
     # .functions handled in enumerate_paths
     remove:
@@ -380,6 +576,8 @@ RangeFunction:
         - SELECT FROM foo()
         - select from foo(1 + 1)
         - SELECT FROM foo(1)
+        - select from rows from (f(1), f(2))
+        - SELECT FROM ROWS FROM (f(1), f())
 
 RangeSubselect:
     replace:
@@ -407,13 +605,36 @@ RawStmt:
         - select
         - "SELECT "
 
-ResTarget: # pulling up val is actually only necessary if 'name' is present, but it doesn't hurt
-    try_null:
-    pullup:
+RenameStmt:
+    tests:
+        - alter table foo rename to bar
+        - ALTER TABLE foo RENAME TO bar
+
+ResTarget:
+    # in a SELECT, we could pull up val (makes sense if 'name' is present), but this is also used by UPDATE
+    descend:
         - val
+    remove:
+        - indirection
     tests:
         - select foo as bar
+        - SELECT foo AS bar
+        - update foo set bar[2] = 1
+        - UPDATE foo SET bar = NULL
+
+RowExpr:
+    pullup:
+        - args
+    tests:
+        - select row(1, foo)
         - SELECT foo
+        - select row(1, 2) = row(3, '')
+        - SELECT ROW(NULL, 2) = ROW(NULL, '')
+
+RuleStmt:
+    tests:
+        - create rule foo as on insert to moo do instead nothing
+        - CREATE RULE foo AS ON INSERT TO moo DO INSTEAD NOTHING
 
 SelectStmt:
     descend:
@@ -475,6 +696,12 @@ SelectStmt:
         - select distinct on (a, b) NULL
         - SELECT DISTINCT ON (a) NULL
 
+SetToDefault:
+    try_null:
+    tests:
+        - update foo set a = default
+        - UPDATE foo SET a = NULL
+
 SortBy:
     remove:
         - sortby_dir
@@ -494,6 +721,18 @@ SubLink:
         - select exists(select moo)
         - SELECT moo
 
+TransactionStmt:
+    tests:
+        - begin
+        - "BEGIN "
+
+TruncateStmt:
+    descend:
+        - relations
+    tests:
+        - truncate foo, bar
+        - TRUNCATE TABLE foo
+
 TypeCast:
     try_null:
     pullup:
@@ -501,11 +740,6 @@ TypeCast:
     tests:
         - select foo::int
         - SELECT foo
-
-VariableSetStmt:
-    tests:
-        - set work_mem = '100MB'
-        - SET work_mem TO '100MB'
 
 UpdateStmt:
     remove:
@@ -519,6 +753,25 @@ UpdateStmt:
         - UPDATE foo SET c = NULL
         - update foo set a=b where true
         - UPDATE foo SET a = NULL
+
+VacuumStmt:
+    tests:
+        - vacuum foo
+        - VACUUM foo
+
+VariableSetStmt:
+    tests:
+        - set work_mem = '100MB'
+        - SET work_mem TO '100MB'
+
+ViewStmt:
+    replace:
+        - query
+    tests:
+        - create view foo as select bar
+        - SELECT bar
+        - create view foo (n) as select 1, 2; select n = '' from foo
+        - CREATE VIEW foo (n) AS SELECT 2; SELECT n = '' FROM foo
 
 WindowDef:
     # we cannot pull anything up here since we are a sub-node of the actual query
@@ -576,11 +829,11 @@ def enumerate_paths(node, path=[]):
         print(node)
         print("Please submit this as a bug report")
 
-    # RangeFunction.functions is ((FuncCall), None), go to inner node directly
+    # RangeFunction.functions is ((FuncCall(), None), ...), go to inner node directly
     if isinstance(node, pglast.ast.RangeFunction):
-        assert len(node.functions) == 1
-        assert len(node.functions[0]) == 2
-        for p in enumerate_paths(node.functions[0][0], path+['functions', 0, 0]): yield p
+        for i in range(len(node.functions)): # multiple entries for ROWS FROM (f, f)
+            assert len(node.functions[i]) == 2
+            for p in enumerate_paths(node.functions[i][0], path+['functions', i, 0]): yield p
 
 def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
@@ -633,7 +886,7 @@ def reduce_step(state, path):
         print(node)
         print("Please submit this as a bug report")
         if state['debug']:
-            raise Exception("reduce_step: don't know what to do with the node at path" + path)
+            raise Exception("reduce_step: don't know what to do with the node at path " + str(path))
 
     # additional actions
 
