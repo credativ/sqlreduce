@@ -395,8 +395,12 @@ InsertStmt:
     remove:
         - onConflictClause
         - cols
+        - withClause
+        - returningList
     descend:
         - onConflictClause # special handling in reduce_step
+        - withClause
+        - returningList
     tests:
         - insert into bar select from bar
         - SELECT FROM bar
@@ -406,6 +410,12 @@ InsertStmt:
         - "INSERT INTO foo SELECT "
         - insert into foo values (1) on conflict do nothing
         - "INSERT INTO foo SELECT "
+        - with foo as (select 1) insert into bar select * from foo
+        - "INSERT INTO bar SELECT "
+        - insert into foo select returning bar, moo
+        - "INSERT INTO foo SELECT "
+        - create table foo (bar int); insert into foo select returning bar, moo
+        - CREATE TABLE foo (bar integer); INSERT INTO foo SELECT RETURNING moo
 
 JoinExpr:
     pullup:
