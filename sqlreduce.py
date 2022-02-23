@@ -45,11 +45,13 @@ def run_query(state, query):
     except psycopg2.Error as e:
         if state['use_sqlstate']:
             error = e.pgcode
-        else:
+        elif e.pgerror:
             error = e.pgerror.partition('\n')[0]
+        else:
+            error = str(e)
     except Exception as e:
         print(e)
-        error = e
+        error = str(e)
     try:
         conn.close()
     except:
@@ -281,6 +283,9 @@ CopyStmt:
     tests:
         - copy (select foo) to 'bla'
         - SELECT foo
+        # raises psycopg2.ProgrammingError: can't execute COPY FROM: use the copy_from() method instead
+        - create table foo (id int); copy foo from stdin
+        - CREATE TABLE foo (id integer); COPY foo FROM STDIN
 
 CreatePolicyStmt:
     descend:
