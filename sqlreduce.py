@@ -146,6 +146,8 @@ visiting them.
 """
 
 rules_yaml = """
+# nodes with reduction steps
+
 A_ArrayExpr:
     try_null:
     pullup:
@@ -185,37 +187,12 @@ A_Indirection:
         - select (select array[1])[foo]
         - SELECT (SELECT ARRAY[NULL])[foo]
 
-AlterDatabaseSetStmt:
+AlterPolicyStmt:
+    descend:
+        - qual
     tests:
-        - alter database foo reset all
-        - ALTER DATABASE foo RESET ALL
-
-AlterDomainStmt:
-    tests:
-        - alter domain moo add check (value <> '')
-        - ALTER DOMAIN moo ADD CHECK (value <> '')
-
-AlterOwnerStmt:
-    tests:
-        - alter large object 42 owner to moo
-        - ALTER LARGE OBJECT 42 OWNER TO moo
-
-AlterRoleSetStmt:
-    tests:
-        - alter role foo reset all
-        - ALTER ROLE foo RESET ALL
-        - alter role foo in database bar reset all
-        - ALTER ROLE foo IN DATABASE bar RESET ALL
-
-AlterSeqStmt:
-    tests:
-        - alter sequence foo restart 1
-        - ALTER SEQUENCE foo RESTART WITH 1
-
-AlterTableStmt:
-    tests:
-        - alter table foo drop column bar
-        - ALTER TABLE foo DROP COLUMN bar
+        - alter policy moo on bar using (true)
+        - ALTER POLICY moo ON bar USING (NULL)
 
 BoolExpr:
     try_null:
@@ -236,6 +213,14 @@ BooleanTest:
     tests:
         - select foo is true
         - SELECT foo
+
+CallStmt:
+    # funccall handled in enumerate_paths
+    tests:
+        - call foo()
+        - CALL foo()
+        - call foo(bar + 1)
+        - CALL foo(bar)
 
 CaseExpr:
     try_null:
@@ -262,6 +247,11 @@ CaseWhen:
         - select case when bar then 1 else 2 end
         - SELECT bar
 
+ClusterStmt:
+    tests:
+        - cluster foo
+        - CLUSTER foo
+
 CoalesceExpr:
     try_null:
     pullup:
@@ -278,22 +268,12 @@ ColumnRef:
         - select 'foo'
         - "SELECT "
 
-CommentStmt:
-    tests:
-        - comment on table foo is 'bar'
-        - COMMENT ON TABLE foo IS 'bar'
-
 CommonTableExpr:
     replace:
         - ctequery
     tests:
         - with a as (select moo) select from a
         - SELECT moo
-
-CompositeTypeStmt:
-    tests:
-        - create type foo as (a text, b integer, c timestamp)
-        - CREATE TYPE foo AS (a text,  b integer,  c timestamp)
 
 CopyStmt:
     replace:
@@ -302,47 +282,12 @@ CopyStmt:
         - copy (select foo) to 'bla'
         - SELECT foo
 
-CreateConversionStmt:
-    tests:
-        - create conversion foo for 'LATIN1' to 'UTF8' from iso8859_1_to_utf8
-        - CREATE CONVERSION foo FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8
-
-CreatedbStmt:
-    tests:
-        - create database foo
-        - CREATE DATABASE foo
-
-CreateDomainStmt:
-    tests:
-        - create domain foo as int not null
-        - CREATE DOMAIN foo AS integer NOT NULL
-
-CreateFunctionStmt:
-    tests:
-        - create function moo() returns void as $$ select 1 $$ language sql
-        - CREATE FUNCTION moo() RETURNS void AS $$ select 1 $$ LANGUAGE sql
-
 CreatePolicyStmt:
     descend:
         - qual
     tests:
         - create policy foo ON bar for select using (moo % 2 = 0)
         - CREATE POLICY foo ON bar AS PERMISSIVE FOR select TO PUBLIC USING (NULL)
-
-CreateRoleStmt:
-    tests:
-        - create role foo
-        - CREATE ROLE foo
-
-CreateSeqStmt:
-    tests:
-        - create sequence foo
-        - CREATE SEQUENCE foo
-
-CreateTrigStmt:
-    tests:
-        - create trigger foo before insert on bar execute procedure moo()
-        - CREATE TRIGGER foo BEFORE INSERT ON bar FOR EACH STATEMENT EXECUTE PROCEDURE moo()
 
 CreateSchemaStmt:
     descend:
@@ -369,22 +314,12 @@ CreateTableAsStmt:
         - create table foo as select 1, 2
         - CREATE TABLE foo AS SELECT NULL, NULL
 
-DeallocateStmt:
-    tests:
-        - deallocate bar
-        - DEALLOCATE PREPARE bar
-
 DeclareCursorStmt:
     replace:
         - query
     tests:
         - declare foo cursor for select bar
         - SELECT bar
-
-DefineStmt:
-    tests:
-        - create aggregate moo (*) (sfunc = stfnp, stype = int4[], finalfunc = ffp, initcond = '{}')
-        - CREATE AGGREGATE moo (*) (sfunc = stfnp, stype = int4[], finalfunc = ffp, initcond = '{}')
 
 DeleteStmt:
     descend:
@@ -405,31 +340,6 @@ DeleteStmt:
         - delete from pg_database where bar and foo
         - DELETE FROM pg_database WHERE bar
 
-DiscardStmt:
-    tests:
-        - discard all
-        - DISCARD ALL
-
-DoStmt:
-    tests:
-        - do $$ begin end $$
-        - DO $$ begin end $$
-
-DropdbStmt:
-    tests:
-        - drop database foo
-        - DROP DATABASE foo
-
-DropRoleStmt:
-    tests:
-        - drop role moo
-        - DROP ROLE moo
-
-DropStmt:
-    tests:
-        - drop table foo
-        - DROP TABLE foo
-
 ExecuteStmt:
     descend:
         - params
@@ -448,11 +358,6 @@ ExplainStmt:
         - EXPLAIN SELECT FROM foo
         - explain (analyze) select from foo
         - EXPLAIN SELECT FROM foo
-
-FetchStmt:
-    tests:
-        - fetch all in foo
-        - FETCH ALL foo
 
 FuncCall:
     try_null:
@@ -478,16 +383,6 @@ FuncCall:
         - SELECT moo
         - select foo(1 + 1)
         - SELECT foo(1)
-
-GrantStmt:
-    tests:
-        - grant select on foo to bar
-        - GRANT SELECT ON TABLE foo TO bar
-
-IndexStmt:
-    tests:
-        - create index on foo(bar)
-        - CREATE INDEX ON foo (bar)
 
 InsertStmt:
     replace:
@@ -521,10 +416,12 @@ JoinExpr:
         - select from pg_database a join pg_database b on foo
         - SELECT foo
 
-LockStmt:
+NamedArgExpr:
+    pullup:
+        - arg
     tests:
-        - lock foo
-        - LOCK foo IN ACCESS EXCLUSIVE MODE
+        - select foo(bar => moo)
+        - SELECT moo
 
 "Null":
     tests: # doesn't actually test if NULL is left alone
@@ -555,11 +452,6 @@ OnConflictClause:
         - create table foo(id int primary key); insert into foo (id) values (1) on conflict (a) do update set id=1
         - CREATE TABLE foo (id integer PRIMARY KEY); INSERT INTO foo SELECT ON CONFLICT (a) DO NOTHING
 
-ParamRef:
-    tests:
-        - select $1
-        - SELECT $1
-
 PrepareStmt:
     replace:
         - query
@@ -586,6 +478,18 @@ RangeSubselect:
         - select from (select bar) sub
         - SELECT bar
 
+RangeTableFunc:
+    descend:
+        - columns
+    tests:
+        - select from xmltable('/foo' passing bla columns foo integer, moo text)
+        - SELECT FROM xmltable('/foo' PASSING bla COLUMNS moo text)
+
+RangeTableFuncCol:
+    tests:
+        - select from xmltable('/foo' passing bla columns foo integer, moo text)
+        - SELECT FROM xmltable('/foo' PASSING bla COLUMNS moo text)
+
 RangeTableSample:
     pullup:
         - relation
@@ -604,11 +508,6 @@ RawStmt:
     tests:
         - select
         - "SELECT "
-
-RenameStmt:
-    tests:
-        - alter table foo rename to bar
-        - ALTER TABLE foo RENAME TO bar
 
 ResTarget:
     # in a SELECT, we could pull up val (makes sense if 'name' is present), but this is also used by UPDATE
@@ -630,11 +529,6 @@ RowExpr:
         - SELECT foo
         - select row(1, 2) = row(3, '')
         - SELECT ROW(NULL, 2) = ROW(NULL, '')
-
-RuleStmt:
-    tests:
-        - create rule foo as on insert to moo do instead nothing
-        - CREATE RULE foo AS ON INSERT TO moo DO INSTEAD NOTHING
 
 SelectStmt:
     descend:
@@ -721,11 +615,6 @@ SubLink:
         - select exists(select moo)
         - SELECT moo
 
-TransactionStmt:
-    tests:
-        - begin
-        - "BEGIN "
-
 TruncateStmt:
     descend:
         - relations
@@ -753,16 +642,6 @@ UpdateStmt:
         - UPDATE foo SET c = NULL
         - update foo set a=b where true
         - UPDATE foo SET a = NULL
-
-VacuumStmt:
-    tests:
-        - vacuum foo
-        - VACUUM foo
-
-VariableSetStmt:
-    tests:
-        - set work_mem = '100MB'
-        - SET work_mem TO '100MB'
 
 ViewStmt:
     replace:
@@ -795,6 +674,272 @@ WithClause:
     tests:
         - with a(a) as (select 5), whatever as (select), b(b) as (select '') select a = b from a, b
         - WITH a(a) AS (SELECT 5), b(b) AS (SELECT NULL) SELECT a = b FROM a, b
+
+XmlExpr:
+    pullup:
+        - args
+        - named_args
+    tests:
+        # args
+        - select xmlelement(name bar, moo)
+        - SELECT moo
+        # named_args
+        - select xmlforest(foo, bar)
+        - SELECT foo
+
+# boring no-op nodes
+
+AlterDatabaseSetStmt:
+    tests:
+        - alter database foo reset all
+        - ALTER DATABASE foo RESET ALL
+
+AlterDefaultPrivilegesStmt:
+    tests:
+        - alter default privileges for role foo revoke delete on tables from bar
+        - ALTER DEFAULT PRIVILEGES FOR ROLE foo REVOKE DELETE ON TABLES FROM bar
+
+AlterDomainStmt:
+    tests:
+        - alter domain moo add check (value <> '')
+        - ALTER DOMAIN moo ADD CHECK (value <> '')
+
+AlterEventTrigStmt:
+    tests:
+        - alter event trigger foo disable
+        - ALTER EVENT TRIGGER foo DISABLE
+
+AlterFunctionStmt:
+    tests:
+        - alter function foo() strict
+        - ALTER FUNCTION foo () RETURNS NULL ON NULL INPUT
+
+AlterObjectSchemaStmt:
+    tests:
+        - alter table foo set schema bla
+        - ALTER TABLE foo SET SCHEMA bla
+
+AlterOwnerStmt:
+    tests:
+        - alter large object 42 owner to moo
+        - ALTER LARGE OBJECT 42 OWNER TO moo
+
+AlterRoleSetStmt:
+    tests:
+        - alter role foo reset all
+        - ALTER ROLE foo RESET ALL
+        - alter role foo in database bar reset all
+        - ALTER ROLE foo IN DATABASE bar RESET ALL
+
+AlterRoleStmt:
+    tests:
+        - alter role foo superuser
+        - ALTER ROLE foo SUPERUSER
+
+AlterSeqStmt:
+    tests:
+        - alter sequence foo restart 1
+        - ALTER SEQUENCE foo RESTART WITH 1
+
+AlterTableStmt:
+    tests:
+        - alter table foo drop column bar
+        - ALTER TABLE foo DROP COLUMN bar
+
+CommentStmt:
+    tests:
+        - comment on table foo is 'bar'
+        - COMMENT ON TABLE foo IS 'bar'
+
+CompositeTypeStmt:
+    tests:
+        - create type foo as (a text, b integer, c timestamp)
+        - CREATE TYPE foo AS (a text,  b integer,  c timestamp)
+
+CreateCastStmt:
+    tests:
+        - create cast (foo as bar) without function
+        - CREATE CAST (foo AS bar) WITHOUT FUNCTION
+
+CreateConversionStmt:
+    tests:
+        - create conversion foo for 'LATIN1' to 'UTF8' from iso8859_1_to_utf8
+        - CREATE CONVERSION foo FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8
+
+CreatedbStmt:
+    tests:
+        - create database foo
+        - CREATE DATABASE foo
+
+CreateDomainStmt:
+    tests:
+        - create domain foo as int not null
+        - CREATE DOMAIN foo AS integer NOT NULL
+
+CreateEnumStmt:
+    tests:
+        - create type foo as enum ('foo', 'bar')
+        - CREATE TYPE foo AS ENUM ('foo', 'bar')
+
+CreateEventTrigStmt:
+    tests:
+        - create event trigger foo on ddl_command_start execute function moo()
+        - CREATE EVENT TRIGGER foo ON ddl_command_start EXECUTE PROCEDURE moo()
+
+CreateFdwStmt:
+    tests:
+        - create foreign data wrapper foo
+        - CREATE FOREIGN DATA WRAPPER foo
+
+CreateForeignServerStmt:
+    tests:
+        - create server bar foreign data wrapper foo
+        - CREATE SERVER bar FOREIGN DATA WRAPPER foo
+
+CreateForeignTableStmt:
+    tests:
+        - create foreign table foo (moo int not null) server bar
+        - CREATE FOREIGN TABLE foo (moo integer NOT NULL) SERVER bar
+
+CreateFunctionStmt:
+    tests:
+        - create function moo() returns void as $$ select 1 $$ language sql
+        - CREATE FUNCTION moo() RETURNS void AS $$ select 1 $$ LANGUAGE sql
+
+CreateRangeStmt:
+    tests:
+        - create type foo as range (subtype = bar)
+        - CREATE TYPE foo AS RANGE (subtype = bar)
+
+CreateOpClassStmt:
+    tests:
+        - create operator class foo for type bar using moo as storage bla
+        - CREATE OPERATOR CLASS foo FOR TYPE bar USING moo AS STORAGE bla
+
+CreatePublicationStmt:
+    tests:
+        - create publication foo
+        - "CREATE PUBLICATION foo "
+
+CreateRoleStmt:
+    tests:
+        - create role foo
+        - CREATE ROLE foo
+
+CreateSeqStmt:
+    tests:
+        - create sequence foo
+        - CREATE SEQUENCE foo
+
+CreateSubscriptionStmt:
+    tests:
+        - create subscription moo connection '' publication foo
+        - "CREATE SUBSCRIPTION moo CONNECTION '' PUBLICATION foo "
+
+CreateTrigStmt:
+    tests:
+        - create trigger foo before insert on bar execute procedure moo()
+        - CREATE TRIGGER foo BEFORE INSERT ON bar FOR EACH STATEMENT EXECUTE PROCEDURE moo()
+
+CreateUserMappingStmt:
+    tests:
+        - create user mapping for moo server bar
+        - CREATE USER MAPPING FOR moo SERVER bar
+
+DeallocateStmt:
+    tests:
+        - deallocate bar
+        - DEALLOCATE PREPARE bar
+
+DefineStmt:
+    tests:
+        - create aggregate moo (*) (sfunc = foo, stype = int4[], finalfunc = bar, initcond = '{}')
+        - CREATE AGGREGATE moo (*) (sfunc = foo, stype = int4[], finalfunc = bar, initcond = '{}')
+
+DiscardStmt:
+    tests:
+        - discard all
+        - DISCARD ALL
+
+DoStmt:
+    tests:
+        - do $$ begin end $$
+        - DO $$ begin end $$
+
+DropdbStmt:
+    tests:
+        - drop database foo
+        - DROP DATABASE foo
+
+DropOwnedStmt:
+    tests:
+        - drop owned by bar
+        - DROP OWNED BY bar RESTRICT
+
+DropRoleStmt:
+    tests:
+        - drop role moo
+        - DROP ROLE moo
+
+DropStmt:
+    tests:
+        - drop table foo
+        - DROP TABLE foo
+
+FetchStmt:
+    tests:
+        - fetch all in foo
+        - FETCH ALL foo
+
+GrantStmt:
+    tests:
+        - grant select on foo to bar
+        - GRANT SELECT ON TABLE foo TO bar
+
+IndexStmt:
+    tests:
+        - create index on foo(bar)
+        - CREATE INDEX ON foo (bar)
+
+LockStmt:
+    tests:
+        - lock foo
+        - LOCK foo IN ACCESS EXCLUSIVE MODE
+
+ParamRef:
+    tests:
+        - select $1
+        - SELECT $1
+
+RenameStmt:
+    tests:
+        - alter table foo rename to bar
+        - ALTER TABLE foo RENAME TO bar
+
+RuleStmt:
+    tests:
+        - create rule foo as on insert to moo do instead nothing
+        - CREATE RULE foo AS ON INSERT TO moo DO INSTEAD NOTHING
+
+TransactionStmt:
+    tests:
+        - begin
+        - "BEGIN "
+
+VacuumStmt:
+    tests:
+        - vacuum foo
+        - VACUUM foo
+
+VariableSetStmt:
+    tests:
+        - set work_mem = '100MB'
+        - SET work_mem TO '100MB'
+
+VariableShowStmt:
+    tests:
+        - show work_mem
+        - SHOW work_mem
 """
 
 rules = yaml.safe_load(rules_yaml)
@@ -829,8 +974,14 @@ def enumerate_paths(node, path=[]):
         print(node)
         print("Please submit this as a bug report")
 
+    # descend directly from CallStmt to .funccall.args so funccall itself doesn't get replaced by Null
+    if isinstance(node, pglast.ast.CallStmt):
+        assert node.funccall
+        if node.funccall.args:
+            for p in enumerate_paths(node.funccall.args, path+['funccall', 'args']): yield p
+
     # RangeFunction.functions is ((FuncCall(), None), ...), go to inner node directly
-    if isinstance(node, pglast.ast.RangeFunction):
+    elif isinstance(node, pglast.ast.RangeFunction):
         for i in range(len(node.functions)): # multiple entries for ROWS FROM (f, f)
             assert len(node.functions[i]) == 2
             for p in enumerate_paths(node.functions[i][0], path+['functions', i, 0]): yield p
