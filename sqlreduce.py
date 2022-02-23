@@ -692,6 +692,13 @@ XmlExpr:
         - select xmlforest(foo, bar)
         - SELECT foo
 
+XmlSerialize:
+    pullup:
+        - expr
+    tests:
+        - SELECT xmlserialize(content moo as text)
+        - SELECT moo
+
 # boring no-op nodes
 
 AlterDatabaseSetStmt:
@@ -1117,6 +1124,8 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
         print("We'll proceed anyway, but the result is probably bogus.")
         print("Regenerated query returns:", regenerated_query_error)
         print()
+        if state['debug']:
+            raise Exception("The original query and the parsed and regenerated query do not return the same result state.")
 
     reduce_loop(state)
 
