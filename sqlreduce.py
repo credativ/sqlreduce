@@ -648,10 +648,11 @@ TypeCast:
 UpdateStmt:
     remove:
         - whereClause
+        - returningList
     descend:
         - whereClause
         - targetList
-        # FIXME: don't reduce ResTarget so b doesn't end up as "a" or "b"
+        - returningList
     tests:
         - update foo set a=b, c=d
         - UPDATE foo SET c = NULL
@@ -1105,6 +1106,7 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
             'database': database,
             'debug': debug,
             'parsetree': parsetree,
+            'regenerated_query': regenerated_query,
             'seen': set(),
             'terminal': sys.stdout.isatty() and os.environ.get('TERM') != 'dumb',
             'timeout': timeout,
