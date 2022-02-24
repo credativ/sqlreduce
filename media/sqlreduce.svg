@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="61.536491mm"
+   height="58.63089mm"
+   viewBox="0 0 61.536491 58.63089"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="sqlreduce.svg"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <title
+     id="title643">SQLreduce logo</title>
+  <sodipodi:namedview
+     id="namedview12"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="2.2900866"
+     inkscape:cx="51.9631"
+     inkscape:cy="111.56783"
+     inkscape:window-width="1364"
+     inkscape:window-height="726"
+     inkscape:window-x="0"
+     inkscape:window-y="20"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8">
+    <inkscape:grid
+       type="xygrid"
+       id="grid151" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <rect
+       x="51.583019"
+       y="127.75483"
+       width="112.78774"
+       height="76.706352"
+       id="rect835" />
+  </defs>
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <cc:license
+           rdf:resource="http://creativecommons.org/licenses/by-sa/4.0/" />
+        <dc:title>SQLreduce logo</dc:title>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Andreas Seltenreich, Christoph Berg</dc:title>
+          </cc:Agent>
+        </dc:creator>
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/licenses/by-sa/4.0/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Notice" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Attribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#ShareAlike" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+  <path
+     id="rect69"
+     style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:4.43582;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:9.4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     d="m 16.716427,1.1130567 c -0.569491,0 -1.188581,0.025905 -1.857115,0.077299 -0.668534,0.051395 -1.324139,0.1284638 -1.967912,0.2312539 -0.619013,0.1027903 -1.200944,0.2310236 -1.745676,0.3852086 -0.519971,0.1284876 -0.928713,0.2703169 -1.2258382,0.424502 V 8.0133086 C 10.217011,7.8334259 10.650311,7.6663374 11.219803,7.5121519 11.814055,7.3322693 12.482905,7.1781314 13.22572,7.049644 c 0.767575,-0.1541837 1.597015,-0.2701091 2.488393,-0.3472026 0.91614,-0.077094 1.857054,-0.1159492 2.822714,-0.1159492 v 3.0842432 c 0,3.2121856 -0.07432,6.3856046 -0.22288,9.5206986 -0.123801,3.109396 -0.309593,6.090465 -0.5572,8.942886 -0.234241,2.698484 -0.524573,5.233615 -0.869617,7.610116 h 6.913136 c 0.29159,-2.320837 0.531307,-4.801442 0.715662,-7.456162 0.198083,-2.878117 0.334758,-5.910351 0.409043,-9.09684 0.09905,-3.212187 0.148157,-6.488579 0.148157,-9.8292525 V 6.5864922 H 38.889736 V 34.070262 c 0,0.588092 0.01904,1.144788 0.05476,1.674174 h 6.962736 c -0.03857,-0.128738 -0.07566,-0.261457 -0.10951,-0.401957 -0.148563,-0.745225 -0.22288,-1.670697 -0.22288,-2.775687 V 6.5864922 h 7.576623 V 1.1130567 Z" />
+  <path
+     style="fill:#000000;fill-rule:evenodd;stroke:#000000;stroke-width:1.86191px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="m 14.57243,35.109941 11.562979,-0.0026 -6.441922,19.150944 z"
+     id="path851" />
+  <path
+     style="fill:#000000;fill-rule:evenodd;stroke:#000000;stroke-width:1.86191px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="m 36.427835,35.109941 11.562978,-0.0026 -6.441921,19.150944 z"
+     id="path851-3" />
+</svg>
