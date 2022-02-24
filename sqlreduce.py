@@ -29,6 +29,7 @@ def setattr_path(obj, path, node):
     return obj2
 
 def run_query(state, query):
+    # establish connection and wait for it to be ready
     while True:
         try:
             conn = psycopg2.connect(state['database'], fallback_application_name='sqlreduce')
@@ -36,21 +37,19 @@ def run_query(state, query):
             cur.execute("set statement_timeout = %s", (state['timeout'],))
             break
         except Exception as e:
-            print("Waiting for connection startup:", e)
-            time.sleep(1)
+            time.sleep(.2)
 
     error = 'no error'
     try:
         cur.execute(query)
     except psycopg2.Error as e:
         if state['use_sqlstate']:
-            error = e.pgcode
+            error = e.pgcode if e.pgcode else "CRASH"
         elif e.pgerror:
             error = e.pgerror.partition('\n')[0]
         else:
             error = str(e)
     except Exception as e:
-        print(e)
         error = str(e)
     try:
         conn.close()
