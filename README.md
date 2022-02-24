@@ -1,6 +1,8 @@
 SQLreduce: Reduce verbose SQL queries to minimal examples
 =========================================================
 
+![SQLreduce logo](media/sqlreduce.png)
+
 [SQLsmith](https://github.com/anse1/sqlsmith) has proven to be an effective
 tool for finding bugs in different areas in the PostgreSQL server and related
 products, including security bugs, ranging from executor bugs to segfaults in
@@ -21,11 +23,11 @@ SQLreduce is effective at reducing the queries from
 [original error reports from SQLsmith](https://github.com/anse1/sqlsmith/wiki#score-list)
 to queries that match manually-reduced queries.
 
-Requirements
-------------
+# Requirements
 
-* [libpg_query](https://github.com/pganalyze/libpg_query) -- PostgreSQL parser as library
+* [PostgreSQL](https://www.postgresql.org/) -- database server running the query to be reduced
 * [pglast](https://github.com/lelit/pglast) -- Python interface to libpg_query
+* [libpg_query](https://github.com/pganalyze/libpg_query) -- PostgreSQL parser as library (requirement of pglast)
 
 Debian/Ubuntu packages for these are shipped on [apt.postgresql.org](https://apt.postgresql.org).
 
@@ -33,13 +35,29 @@ Debian/Ubuntu packages for these are shipped on [apt.postgresql.org](https://apt
 apt install python3-pglast
 ```
 
-Authors
--------
+# Example
+
+In 2018,
+[SQLsmith found a segfault](https://www.postgresql.org/message-id/87woxi24uw.fsf@ansel.ydns.eu)
+in PostgreSQL running Git revision 039eb6e92f. The reproducer back then was a
+[huge 40-line, 2.2kB query](media/sqlreduce-screencast.sql).
+SQLreduce can effectively reduce that monster to just
+`SELECT pg_catalog.stddev(NULL) OVER () AS c5 FROM public.mlparted3 AS ref_0`.
+
+![SQLreduce screencast](media/sqlreduce-screencast.gif)
+
+At the end of the video we can see some of the extra steps where SQLreduce has
+tried to remove more parts of the query, but removing these also removes the
+error.
+
+The runtime in this example is entirely limited by the time PostgreSQL needs to
+restart after crashing. SQLreduce itself is much faster.
+
+# Authors
 
 * Christoph Berg
 
-License
--------
+# License
 
 Copyright (c) 2022, PostgreSQL Global Development Group
 
