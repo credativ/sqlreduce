@@ -40,17 +40,68 @@ apt install python3-pglast
 In 2018,
 [SQLsmith found a segfault](https://www.postgresql.org/message-id/87woxi24uw.fsf@ansel.ydns.eu)
 in PostgreSQL running Git revision 039eb6e92f. The reproducer back then was a
-[huge 40-line, 2.2kB query](media/sqlreduce-screencast.sql).
-SQLreduce can effectively reduce that monster to just
-`SELECT pg_catalog.stddev(NULL) OVER () AS c5 FROM public.mlparted3 AS ref_0`.
+[huge 40-line, 2.2kB query](media/sqlreduce-screencast.sql):
 
-![SQLreduce screencast](media/sqlreduce-screencast.gif)
+```
+select
+  case when pg_catalog.lastval() < pg_catalog.pg_stat_get_bgwriter_maxwritten_clean() then case when pg_catalog.circle_sub_pt(
+          cast(cast(null as circle) as circle),
+          cast((select location from public.emp limit 1 offset 13)
+             as point)) ~ cast(nullif(case when cast(null as box) &> (select boxcol from public.brintest limit 1 offset 2)
+                 then (select f1 from public.circle_tbl limit 1 offset 4)
+               else (select f1 from public.circle_tbl limit 1 offset 4)
+               end,
+          case when (select pg_catalog.max(class) from public.f_star)
+                 ~~ ref_0.c then cast(null as circle) else cast(null as circle) end
+            ) as circle) then ref_0.a else ref_0.a end
+       else case when pg_catalog.circle_sub_pt(
+          cast(cast(null as circle) as circle),
+          cast((select location from public.emp limit 1 offset 13)
+             as point)) ~ cast(nullif(case when cast(null as box) &> (select boxcol from public.brintest limit 1 offset 2)
+                 then (select f1 from public.circle_tbl limit 1 offset 4)
+               else (select f1 from public.circle_tbl limit 1 offset 4)
+               end,
+          case when (select pg_catalog.max(class) from public.f_star)
+                 ~~ ref_0.c then cast(null as circle) else cast(null as circle) end
+            ) as circle) then ref_0.a else ref_0.a end
+       end as c0,
+  case when (select intervalcol from public.brintest limit 1 offset 1)
+         >= cast(null as "interval") then case when ((select pg_catalog.max(roomno) from public.room)
+             !~~ ref_0.c)
+        and (cast(null as xid) <> 100) then ref_0.b else ref_0.b end
+       else case when ((select pg_catalog.max(roomno) from public.room)
+             !~~ ref_0.c)
+        and (cast(null as xid) <> 100) then ref_0.b else ref_0.b end
+       end as c1,
+  ref_0.a as c2,
+  (select a from public.idxpart1 limit 1 offset 5) as c3,
+  ref_0.b as c4,
+    pg_catalog.stddev(
+      cast((select pg_catalog.sum(float4col) from public.brintest)
+         as float4)) over (partition by ref_0.a,ref_0.b,ref_0.c order by ref_0.b) as c5,
+  cast(nullif(ref_0.b, ref_0.a) as int4) as c6, ref_0.b as c7, ref_0.c as c8
+from
+  public.mlparted3 as ref_0
+where true;
+```
+
+SQLreduce can effectively reduce that monster to just this:
+
+```
+SELECT pg_catalog.stddev(NULL) OVER () AS c5 FROM public.mlparted3 AS ref_0
+```
 
 At the end of the video we can see some of the extra steps where SQLreduce has
 tried to remove more parts of the query, but removing these also removes the
 error.
 
-The runtime in this example is entirely limited by the time PostgreSQL needs to
+```
+sqlreduce -d 'dbname=regression' media/sqlreduce-screencast.sql
+```
+
+![SQLreduce screencast](media/sqlreduce-screencast.gif)
+
+The run time of this example is entirely limited by the time PostgreSQL needs to
 restart after crashing. SQLreduce itself is much faster.
 
 # Authors
