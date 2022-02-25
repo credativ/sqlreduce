@@ -29,6 +29,8 @@ to queries that match manually-reduced queries.
 * [PostgreSQL](https://www.postgresql.org/) -- database server running the query to be reduced
 * [pglast](https://github.com/lelit/pglast) -- Python interface to libpg_query
 * [libpg_query](https://github.com/pganalyze/libpg_query) -- PostgreSQL parser as library (requirement of pglast)
+* [psycopg2](https://www.psycopg.org/) -- Python PostgreSQL driver
+* [yaml](https://pyyaml.org/) -- Python YAML library
 
 Debian/Ubuntu packages for these are shipped on [apt.postgresql.org](https://apt.postgresql.org).
 

@@ -10,6 +10,7 @@ Build-Depends:
  pybuild-plugin-pyproject,
  python3-all,
  python3-pglast,
+ python3-psycopg2,
  python3-pytest,
  python3-setuptools,
  python3-yaml,
