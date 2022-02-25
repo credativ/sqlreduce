@@ -1,0 +1,92 @@
+select  
+	  subq_4.c6 as c0, 
+	  subq_4.c9 as c1
+	from 
+	  (select  
+	        subq_1.c5 as c0, 
+	        sample_0.loid as c1, 
+	        subq_3.c4 as c2, 
+	        subq_1.c7 as c3, 
+	        (select specific_catalog from information_schema.transforms limit 1 offset 6)
+	           as c4, 
+	        subq_3.c0 as c5, 
+	        subq_3.c4 as c6, 
+	        sample_0.loid as c7, 
+	        subq_3.c2 as c8, 
+	        subq_1.c3 as c9, 
+	        sample_0.loid as c10
+	      from 
+	        pg_catalog.pg_largeobject as sample_0 tablesample bernoulli (1.3) ,
+	        lateral (select  
+	              subq_0.c1 as c0, 
+	              sample_0.pageno as c1, 
+	              sample_0.data as c2, 
+	              (select role_name from information_schema.enabled_roles limit 1 offset 30)
+	                 as c3, 
+	              subq_0.c0 as c4, 
+	              sample_0.data as c5, 
+	              ref_0.installed_version as c6, 
+	              ref_0.default_version as c7, 
+	              (select schemaname from pg_catalog.pg_statio_sys_tables limit 1 offset 4)
+	                 as c8
+	            from 
+	              pg_catalog.pg_available_extensions as ref_0,
+	              lateral (select  
+	                    ref_0.name as c0, 
+	                    ref_0.installed_version as c1, 
+	                    sample_0.data as c2, 
+	                    ref_0.name as c3, 
+	                    ref_0.name as c4
+	                  from 
+	                    pg_catalog.pg_replication_origin as sample_1 tablesample bernoulli (3.9) 
+	                  where cast(null as polygon) |>> cast(null as polygon)
+	                  limit 58) as subq_0
+	            where cast(null as lseg) < cast(null as lseg)
+	            limit 124) as subq_1,
+	        lateral (select  
+	              ref_1.dealloc as c0, 
+	              (select pg_catalog.max(stxstattarget) from pg_catalog.pg_statistic_ext)
+	                 as c1, 
+	              subq_1.c1 as c2, 
+	              (select provider from pg_catalog.pg_seclabels limit 1 offset 5)
+	                 as c3, 
+	              subq_2.c1 as c4
+	            from 
+	              public.pg_stat_statements_info as ref_1,
+	              lateral (select  
+	                    subq_1.c8 as c0, 
+	                    subq_1.c6 as c1
+	                  from 
+	                    pg_catalog.pg_partitioned_table as sample_2 tablesample system (7.9) 
+	                  where cast(null as lseg) >= cast(null as lseg)
+	                  limit 59) as subq_2
+	            where cast(null as circle) >> cast(null as circle)
+	            limit 147) as subq_3
+	      where subq_3.c0 = pg_catalog.pg_trigger_depth()
+	      limit 48) as subq_4
+	where pg_catalog.date_pl_interval(
+	    cast(cast(coalesce(case when (cast(null as pg_lsn) <= cast(null as pg_lsn)) 
+	          and (cast(null as anyrange) < cast(null as anyrange)) then cast(coalesce(cast(null as date),
+	          cast(null as date)) as date) else cast(coalesce(cast(null as date),
+	          cast(null as date)) as date) end
+	        ,
+	      case when (true) 
+	          or ((subq_4.c6 is not NULL) 
+	            and (cast(null as macaddr8) <= cast(null as macaddr8))) then cast(nullif(cast(null as date),
+	          cast(nullif(cast(null as date),
+	            cast(null as date)) as date)) as date) else cast(nullif(cast(null as date),
+	          cast(nullif(cast(null as date),
+	            cast(null as date)) as date)) as date) end
+	        ) as date) as date),
+	    cast((select utc_offset from pg_catalog.pg_timezone_abbrevs limit 1 offset 4)
+	       as "interval")) = pg_catalog.date_pli(
+	    cast(case when subq_4.c10 is NULL then pg_catalog.date_mii(
+	        cast(case when true then cast(null as date) else cast(null as date) end
+	           as date),
+	        cast(subq_4.c8 as int4)) else pg_catalog.date_mii(
+	        cast(case when true then cast(null as date) else cast(null as date) end
+	           as date),
+	        cast(subq_4.c8 as int4)) end
+	       as date),
+	    cast(subq_4.c8 as int4))
+	limit 84
