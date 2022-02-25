@@ -14,10 +14,11 @@ the error. So far, manual inspection of the query and tedious editing was
 required to reduce the example to a minimal reproducer that developers can use
 to fix the problem.
 
-This issue is addressed by SQLreduce. SQLreduce that takes as input an
-arbitrary SQL query. The query is run against a PostgreSQL server, and various
-simplification steps are applied, while checking that the simplified query
-still exhibits the same error from PostgreSQL.
+This issue is addressed by SQLreduce. SQLreduce takes as input an arbitrary SQL
+query which is then run against a PostgreSQL server. Various simplification
+steps are applied, checking after each step that the simplified query still
+triggers the same error from PostgreSQL. The end result is a SQL query with
+minimal complexity.
 
 SQLreduce is effective at reducing the queries from
 [original error reports from SQLsmith](https://github.com/anse1/sqlsmith/wiki#score-list)
