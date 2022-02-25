@@ -1,0 +1,5 @@
+sqlreduce (1.0-1) UNRELEASED; urgency=medium
+
+  * Initial release.
+
+ -- Christoph Berg <myon@debian.org>  Fri, 25 Feb 2022 11:20:20 +0100

@@ -1,0 +1,35 @@
+Source: sqlreduce
+Section: python
+Priority: optional
+Maintainer: Christoph Berg <myon@debian.org>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ help2man <!cross>,
+ postgresql <!nocheck>,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-pglast,
+ python3-pytest,
+ python3-setuptools,
+ python3-yaml,
+Standards-Version: 4.6.0
+Homepage: https://github.com/credativ/sqlreduce
+Vcs-Browser: https://github.com/credativ/sqlreduce
+Vcs-Git: https://github.com/credativ/sqlreduce.git
+Testsuite: autopkgtest-pkg-python
+Rules-Requires-Root: no
+
+Package: sqlreduce
+Architecture: all
+Multi-Arch: foreign
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ ${shlibs:Depends},
+Provides:
+ ${python3:Provides},
+Description: Reduce verbose SQL queries to minimal examples
+ SQLreduce takes as input an arbitrary SQL query which is then run against a
+ PostgreSQL server. Various simplification steps are applied, while checking
+ that the simplified query still exhibits the same error from PostgreSQL.

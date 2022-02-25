@@ -1,0 +1,6 @@
+build/
+debian/sqlreduce/
+debian/sqlreduce.postinst.debhelper
+debian/sqlreduce.prerm.debhelper
+.pybuild/
+sqlreduce.egg-info/

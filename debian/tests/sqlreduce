@@ -1,0 +1,3 @@
+#!/bin/sh
+
+pg_virtualenv sqlreduce -d postgres "select 1, moo"

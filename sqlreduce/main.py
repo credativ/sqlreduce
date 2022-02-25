@@ -9,14 +9,14 @@ import sqlreduce
 
 #from loguru import logger
 #@logger.catch
-def main():
+def sqlreduce_main():
     argparser = argparse.ArgumentParser(description="Reduce a SQL query to the minimal query throwing the same error")
-    argparser.add_argument("-d", "--database", type=str, default="")
-    argparser.add_argument("-f", "--file", type=argparse.FileType('r'), default=sys.stdin)
-    argparser.add_argument("--sqlstate", action='store_true')
-    argparser.add_argument("-t", "--timeout", default='500ms')
+    argparser.add_argument("-d", "--database", type=str, default="", help="Database or connection string to use")
+    argparser.add_argument("-f", "--file", type=argparse.FileType('r'), default=sys.stdin, help="Read query from file [Default: stdin]")
+    argparser.add_argument("--sqlstate", action='store_true', help="Reduce query to same SQL state instead of error message")
+    argparser.add_argument("-t", "--timeout", default='500ms', help="Statement timeout [Default: 500ms]")
     argparser.add_argument("--debug", action='store_true')
-    argparser.add_argument("query", nargs='*')
+    argparser.add_argument("query", nargs='*', help="Query to reduce to minimum")
     args = argparser.parse_args()
 
     if (args.file != sys.stdin and args.query):
@@ -28,6 +28,8 @@ def main():
         query = args.file.read().rstrip()
 
     # check database connection
+    if not '=' in args.database:
+        args.database = f"dbname={args.database}"
     sqlreduce.check_connection(args.database)
 
     # reduce query
@@ -59,4 +61,4 @@ def main():
     #print(state)
 
 if __name__ == "__main__":
-    main()
+    sqlreduce_main()

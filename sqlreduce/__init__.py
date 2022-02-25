@@ -1143,4 +1143,4 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
     return RawStream()(state['parsetree']), state
 
 if __name__ == "__main__":
-    reduce("", "select 1, moo, 3")
+    print(run_reduce("select 1, moo, 3"))
