@@ -24,6 +24,7 @@ Package: sqlreduce
 Architecture: all
 Multi-Arch: foreign
 Depends:
+ python3:any (>= 3.8),
  ${misc:Depends},
  ${python3:Depends},
  ${shlibs:Depends},
