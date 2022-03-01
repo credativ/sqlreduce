@@ -10,6 +10,7 @@ override_dh_auto_test:
 ifeq ($(filter $(DEB_BUILD_PROFILES),cross),)
 execute_after_dh_auto_install:
 	# build manpage
+	PYTHONPATH=$(CURDIR) \
 	help2man --name 'Reduce verbose SQL queries to minimal examples' \
 		--version-string "$(DEB_VERSION_UPSTREAM)" \
 		--no-info \
