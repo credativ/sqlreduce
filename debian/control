@@ -7,7 +7,6 @@ Build-Depends:
  dh-python,
  help2man <!cross>,
  postgresql <!nocheck>,
- pybuild-plugin-pyproject,
  python3-all,
  python3-pglast,
  python3-psycopg2,

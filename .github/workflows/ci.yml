@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request: {}
+  push: {}
+
+jobs:
+
+  debian-build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install postgresql-common
+        run: sudo apt-get install -y postgresql-common
+
+      - name: Set up apt.postgresql.org
+        run: echo yes | sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+
+      - name: Tweak debhelper compat level for focal
+        run: sed -i -e 's/debhelper-compat (= 13)/debhelper-compat (= 12)/' debian/control
+
+      - name: Install build-dependencies
+        run: sudo apt-get build-dep -y .
+
+      - name: Build
+        run: dpkg-buildpackage --no-sign --buildinfo-option=--version -b
+
+      - name: Install
+        run: sudo dpkg -i ../*.deb
+
+      - name: Test
+        run: pg_virtualenv sqlreduce -d postgres 'select pg_database.reltuples / 1000 from pg_database, pg_class where 0 < pg_database.reltuples / 1000 order by 1 desc limit 10'
