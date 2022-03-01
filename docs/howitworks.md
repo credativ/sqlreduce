@@ -1,7 +1,7 @@
 SQLreduce: Reduce verbose SQL queries to minimal examples
 =========================================================
 
-![SQLreduce logo](../media/sqlreduce.png)
+![SQLreduce logo](sqlreduce.png)
 
 [SQLsmith](https://github.com/anse1/sqlsmith) is tool that generates random SQL
 queries and runs them against a PostgreSQL server (and other DBMS types). The
@@ -58,7 +58,6 @@ select
 from
   public.mlparted3 as ref_0
 where true;
-
 ```
 
 However, just like in this 40-line, 2.2kB example, the random queries generated
@@ -106,7 +105,6 @@ Let's pass the query to SQLreduce:
 
 ```
 $ sqlreduce 'select pg_database.reltuples / 1000 from pg_database, pg_class where 0 < pg_database.reltuples / 1000 order by 1 desc limit 10'
-Input query: select pg_database.reltuples / 1000 from pg_database, pg_class where 0 < pg_database.reltuples / 1000 order by 1 desc limit 10
 ```
 
 SQLreduce starts by parsing the input using
@@ -143,11 +141,14 @@ PostgreSQL to determine the result, in this case
 `ERROR:  column pg_database.reltuples does not exist`.
 
 ```
+Input query: select pg_database.reltuples / 1000 from pg_database, pg_class where 0 < pg_database.reltuples / 1000 order by 1 desc limit 10
 Regenerated: SELECT pg_database.reltuples / 1000 FROM pg_database, pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ORDER BY 1 DESC LIMIT 10
 Query returns: ✔ ERROR:  column pg_database.reltuples does not exist
 ```
 
-The first simplification tried is to remove `LIMIT 10`:
+The first simplification steps work on the top level node, where SQLreduce
+tries to remove whole subtrees to quickly find a result. The first reduction
+tried is to remove `LIMIT 10`:
 
 ```
 SELECT pg_database.reltuples / 1000 FROM pg_database, pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ORDER BY 1 DESC ✔
@@ -161,8 +162,7 @@ successfully:
 SELECT pg_database.reltuples / 1000 FROM pg_database, pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ✔
 ```
 
-SQLreduce often tries to remove whole subtrees to quickly find a result, in
-this case the entire target list is removed:
+Now the entire target list is removed:
 
 ```
 SELECT FROM pg_database, pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ✔
@@ -185,7 +185,7 @@ SELECT FROM pg_database, pg_class ✘ no error
 ```
 
 We have now reduced the input query so much that it doesn't error out any more. The previous parse tree
-is still kept which now like this:
+is still kept which now looks like this:
 
 ```
 selectStmt
@@ -200,17 +200,58 @@ selectStmt
             └── 1000
 ```
 
+Now SQLreduce starts digging into the tree. There are several entries in the
+`FROM` clause, so it tries to shorten the list. First, `pg_database` is
+removed, but that doesn't work, so `pg_class` is removed:
+
 ```
 SELECT FROM pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ✘ ERROR:  missing FROM-clause entry for table "pg_database"
 SELECT FROM pg_database WHERE 0 < ((pg_database.reltuples / 1000)) ✔
+```
+
+Since we have found a new minimal query, recursion restarts at top-level with
+another try to remove the `WHERE` clause. Since that doesn't work, it tries to
+replace the expression with `NULL`, but that doesn't work either.
+
+```
 SELECT FROM pg_database ✘ no error
 SELECT FROM pg_database WHERE NULL ✘ no error
+```
+
+Now a new kind of step is tried: expression pull-up. We descend into `WHERE`
+clause, where we replace `A < B` first by `A` and then by `B`.
+
+```
 SELECT FROM pg_database WHERE 0 ✘ ERROR:  argument of WHERE must be type boolean, not type integer
 SELECT FROM pg_database WHERE pg_database.reltuples / 1000 ✔
 SELECT WHERE pg_database.reltuples / 1000 ✘ ERROR:  missing FROM-clause entry for table "pg_database"
+```
+
+The first try did not work, but the second one did. Since we simplified the
+query, we restart at top-level to check if the `FROM` clause can be removed,
+but it is still requried.
+
+From `A / B`, we can again pull up `A`:
+
+```
 SELECT FROM pg_database WHERE pg_database.reltuples ✔
 SELECT WHERE pg_database.reltuples ✘ ERROR:  missing FROM-clause entry for table "pg_database"
+```
 
+SQLreduce has found the minimal query that still raises `ERROR:  column
+pg_database.reltuples does not exist` with this parse tree:
+
+```
+selectStmt
+├── fromClause
+│   └── pg_database
+└── whereClause
+    └── pg_database.reltuples
+```
+
+At the end of the run, the query is printed along with some statistics:
+
+```
 Minimal query yielding the same error:
 SELECT FROM pg_database WHERE pg_database.reltuples
 
@@ -223,3 +264,6 @@ Seen: 15 items, 915 Bytes
 Iterations: 19
 Runtime: 0.107 s, 139.7 q/s
 ```
+
+This minimal query can now be inspected to fix the bug in PostgreSQL or in the
+application.
