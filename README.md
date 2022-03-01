@@ -14,7 +14,7 @@ the error. So far, manual inspection of the query and tedious editing was
 required to reduce the example to a minimal reproducer that developers can use
 to fix the problem.
 
-This issue is addressed by SQLreduce. SQLreduce takes as input an arbitrary SQL
+This issue is solved by SQLreduce. SQLreduce takes as input an arbitrary SQL
 query which is then run against a PostgreSQL server. Various simplification
 steps are applied, checking after each step that the simplified query still
 triggers the same error from PostgreSQL. The end result is a SQL query with
