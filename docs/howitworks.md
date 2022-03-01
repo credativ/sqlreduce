@@ -3,19 +3,23 @@ SQLreduce: Reduce verbose SQL queries to minimal examples
 
 ![SQLreduce logo](sqlreduce.png)
 
-[SQLsmith](https://github.com/anse1/sqlsmith) is tool that generates random SQL
+Developers often face very large SQL queries that raise some error. SQLreduce
+is a tool to reduce that complexity to a minimal query.
+
+## SQLsmith generates random SQL queries
+
+[SQLsmith](https://github.com/anse1/sqlsmith) is a tool that generates random SQL
 queries and runs them against a PostgreSQL server (and other DBMS types). The
 idea is that by fuzz-testing the query parser and executor, corner-case bugs
 can be found that would otherwise go unnoticed in manual testing or with the
 fixed set of test cases in PostgreSQL's regression test suite. It has proven to
 be an
 [effective tool](https://github.com/anse1/sqlsmith/wiki#score-list)
-which has found over 100 bugs in different areas in the PostgreSQL server and
-related products since 2015, including security bugs, ranging from executor
+with over 100 bugs found in different areas in the PostgreSQL server and
+other products since 2015, including security bugs, ranging from executor
 bugs to segfaults in type and index method implementations.
-
 For example, in 2018, SQLsmith found that the following query
-[triggered a segfault in PostgreSQL](https://www.postgresql.org/message-id/87woxi24uw.fsf@ansel.ydns.eu):
+[triggered a segfault in PostgreSQL](https://www.postgresql.org/message-id/flat/87woxi24uw.fsf%40ansel.ydns.eu):
 
 ```
 select
@@ -66,9 +70,9 @@ of noise that does not contribute to the error. So far, manual inspection of
 the query and tedious editing was required to reduce the example to a minimal
 reproducer that developers can use to fix the problem.
 
-# Enter [SQLreduce](https://github.com/credativ/sqlreduce)
+## Reduce complexity with SQLreduce
 
-This issue is addressed by [SQLreduce](https://github.com/credativ/sqlreduce).
+This issue is solved by [SQLreduce](https://github.com/credativ/sqlreduce).
 SQLreduce takes as input an arbitrary SQL query which is then run against a
 PostgreSQL server. Various simplification steps are applied, checking after
 each step that the simplified query still triggers the same error from
@@ -90,7 +94,7 @@ message from PostgreSQL when run against a database. If the input query happens
 to produce no error, the minimal query output by SQLreduce will just be
 `SELECT`.
 
-# How it works
+## How it works
 
 We'll use a simpler query to demonstrate how SQLreduce works and which steps
 are taken to remove noise from the input. The query is bogus and contains a bit
@@ -146,9 +150,11 @@ Regenerated: SELECT pg_database.reltuples / 1000 FROM pg_database, pg_class WHER
 Query returns: ✔ ERROR:  column pg_database.reltuples does not exist
 ```
 
-The first simplification steps work on the top level node, where SQLreduce
-tries to remove whole subtrees to quickly find a result. The first reduction
-tried is to remove `LIMIT 10`:
+SQLreduce works by deriving new parse trees that are structurally simpler,
+generating SQL from that, and run these queries against the database. The first
+simplification steps work on the top level node, where SQLreduce tries to
+remove whole subtrees to quickly find a result. The first reduction tried is to
+remove `LIMIT 10`:
 
 ```
 SELECT pg_database.reltuples / 1000 FROM pg_database, pg_class WHERE 0 < ((pg_database.reltuples / 1000)) ORDER BY 1 DESC ✔
@@ -177,8 +183,8 @@ SELECT WHERE 0 < ((pg_database.reltuples / 1000)) ✘ ERROR:  missing FROM-claus
 ```
 
 That query is also faulty, but triggers a different error message, so the
-previous parse tree is kept for the next steps. Again a whole tree is removed,
-now the `WHERE` clause:
+previous parse tree is kept for the next steps. Again a whole subtree is
+removed, now the `WHERE` clause:
 
 ```
 SELECT FROM pg_database, pg_class ✘ no error
@@ -229,7 +235,7 @@ SELECT WHERE pg_database.reltuples / 1000 ✘ ERROR:  missing FROM-clause entry 
 
 The first try did not work, but the second one did. Since we simplified the
 query, we restart at top-level to check if the `FROM` clause can be removed,
-but it is still requried.
+but it is still required.
 
 From `A / B`, we can again pull up `A`:
 

@@ -4,7 +4,7 @@ SQLreduce: Reduce verbose SQL queries to minimal examples
 ![SQLreduce logo](docs/sqlreduce.png)
 
 [SQLsmith](https://github.com/anse1/sqlsmith) has proven to be an effective
-tool for finding bugs in different areas in the PostgreSQL server and related
+tool for finding bugs in different areas in the PostgreSQL server and other
 products, including security bugs, ranging from executor bugs to segfaults in
 type and index method implementations.
 
@@ -24,6 +24,8 @@ SQLreduce is effective at reducing the queries from
 [original error reports from SQLsmith](https://github.com/anse1/sqlsmith/wiki#score-list)
 to queries that match manually-reduced queries.
 
+More details on [how it works in the documentation](docs/howitworks.md).
+
 # Requirements
 
 * [PostgreSQL](https://www.postgresql.org/) -- database server running the query to be reduced
@@ -32,10 +34,31 @@ to queries that match manually-reduced queries.
 * [psycopg2](https://www.psycopg.org/) -- Python PostgreSQL driver
 * [yaml](https://pyyaml.org/) -- Python YAML library
 
-Debian/Ubuntu packages for these are shipped on [apt.postgresql.org](https://apt.postgresql.org).
+Debian/Ubuntu packages for pglast are shipped on [apt.postgresql.org](https://apt.postgresql.org).
 
 ```
-apt install python3-pglast
+apt install python3-pglast python3-psycopg python3-yaml
+```
+
+# Usage
+
+```
+usage: sqlreduce [-h] [-d DATABASE] [-f FILE] [--sqlstate] [-t TIMEOUT] [--debug] [query ...]
+
+Reduce a SQL query to the minimal query throwing the same error
+
+positional arguments:
+  query                 Query to reduce to minimum
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DATABASE, --database DATABASE
+                        Database or connection string to use
+  -f FILE, --file FILE  Read query from file [Default: stdin]
+  --sqlstate            Reduce query to same SQL state instead of error message
+  -t TIMEOUT, --timeout TIMEOUT
+                        Statement timeout [Default: 500ms]
+  --debug
 ```
 
 # Example
