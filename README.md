@@ -37,7 +37,7 @@ More details on [how it works in the documentation](docs/howitworks.md).
 Debian/Ubuntu packages for pglast are shipped on [apt.postgresql.org](https://apt.postgresql.org).
 
 ```
-apt install python3-pglast python3-psycopg python3-yaml
+apt install python3-pglast python3-psycopg2 python3-yaml
 ```
 
 # Usage
