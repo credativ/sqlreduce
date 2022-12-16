@@ -272,9 +272,13 @@ ColumnRef:
 CommonTableExpr:
     replace:
         - ctequery
+    remove:
+        - cycle_clause
     tests:
         - with a as (select moo) select from a
         - SELECT moo
+        - with recursive a(a) as (select 5 union select 1 from a) cycle a set is_cycle using path, b(b) as (select null) select a = b from a, b
+        - WITH a(a) AS (SELECT NULL UNION SELECT 1), b(b) AS (SELECT NULL) SELECT a = b FROM a, b
 
 CopyStmt:
     replace:
@@ -686,8 +690,10 @@ WindowDef:
 WithClause:
     descend:
         - ctes
+    remove:
+        - recursive
     tests:
-        - with a(a) as (select 5), whatever as (select), b(b) as (select '') select a = b from a, b
+        - with recursive a(a) as (select 5), whatever as (select), b(b) as (select '') select a = b from a, b
         - WITH a(a) AS (SELECT 5), b(b) AS (SELECT NULL) SELECT a = b FROM a, b
 
 XmlExpr:
