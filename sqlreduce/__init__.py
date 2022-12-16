@@ -1035,7 +1035,8 @@ def reduce_step(state, path):
 
         # try replacing the node with NULL
         if 'try_null' in rule:
-            if try_reduce(state, path, pglast.ast.A_Const(isnull=True)): return True
+            null = pglast.ast.Null() if hasattr(pglast.ast, 'Null') else pglast.ast.A_Const(isnull=True) # pglast 3.9 vs 5.0
+            if try_reduce(state, path, null): return True
 
         # try removing some attribute
         if 'remove' in rule:
