@@ -29,7 +29,7 @@ More details on [how it works in the documentation](docs/howitworks.md).
 # Requirements
 
 * [PostgreSQL](https://www.postgresql.org/) -- database server running the query to be reduced
-* [pglast](https://github.com/lelit/pglast) -- Python interface to libpg_query
+* [pglast](https://github.com/lelit/pglast) -- Python interface to libpg_query (tested with version 5)
 * [libpg_query](https://github.com/pganalyze/libpg_query) -- PostgreSQL parser as library (requirement of pglast)
 * [psycopg2](https://www.psycopg.org/) -- Python PostgreSQL driver
 * [yaml](https://pyyaml.org/) -- Python YAML library

@@ -161,7 +161,7 @@ A_Const: # Replace constant with NULL
     try_null:
     tests:
         - select '1,1'::point = '1,1'
-        - SELECT CAST((NULL) AS point) = NULL
+        - SELECT CAST(NULL AS point) = NULL
 
 A_Expr: # Pull up expression subtree
     try_null:
@@ -205,7 +205,7 @@ BoolExpr:
         - select true and (foo or false)
         - SELECT foo
         - select set_config('a.b', 'blub', true) = 'blub' and set_config('work_mem', current_setting('a.b'), true) = '' and true
-        - SELECT (set_config('a.b', 'blub', NULL) = 'blub') AND (set_config('work_mem', current_setting('a.b'), NULL) = '')
+        - SELECT set_config('a.b', 'blub', NULL) = 'blub' AND set_config('work_mem', current_setting('a.b'), NULL) = ''
 
 BooleanTest:
     try_null:
@@ -267,7 +267,7 @@ ColumnRef:
     try_null:
     tests:
         - select 'foo'
-        - "SELECT "
+        - SELECT
 
 CommonTableExpr:
     replace:
@@ -406,13 +406,13 @@ InsertStmt:
         - create table bar(id int); insert into bar values(foo)
         - VALUES (foo)
         - insert into foo (id) select bar
-        - "INSERT INTO foo SELECT "
+        - INSERT INTO foo SELECT
         - insert into foo values (1) on conflict do nothing
-        - "INSERT INTO foo SELECT "
+        - INSERT INTO foo SELECT
         - with foo as (select 1) insert into bar select * from foo
-        - "INSERT INTO bar SELECT "
+        - INSERT INTO bar SELECT
         - insert into foo select returning bar, moo
-        - "INSERT INTO foo SELECT "
+        - INSERT INTO foo SELECT
         - create table foo (bar int); insert into foo select returning bar, moo
         - CREATE TABLE foo (bar integer); INSERT INTO foo SELECT RETURNING moo
 
@@ -440,7 +440,7 @@ NamedArgExpr:
 "Null":
     tests: # doesn't actually test if NULL is left alone
         - select null
-        - "SELECT "
+        - SELECT
 
 NullTest:
     try_null:
@@ -497,12 +497,12 @@ RangeTableFunc:
         - columns
     tests:
         - select from xmltable('/foo' passing bla columns foo integer, moo text)
-        - SELECT FROM xmltable('/foo' PASSING bla COLUMNS moo text)
+        - SELECT FROM xmltable(('/foo') PASSING bla COLUMNS moo text)
 
 RangeTableFuncCol:
     tests:
         - select from xmltable('/foo' passing bla columns foo integer, moo text)
-        - SELECT FROM xmltable('/foo' PASSING bla COLUMNS moo text)
+        - SELECT FROM xmltable(('/foo') PASSING bla COLUMNS moo text)
 
 RangeTableSample:
     pullup:
@@ -521,7 +521,7 @@ RawStmt:
         - stmt
     tests:
         - select
-        - "SELECT "
+        - SELECT
 
 ResTarget:
     # in a SELECT, we could pull up val (makes sense if 'name' is present), but this is also used by UPDATE
@@ -572,15 +572,15 @@ SelectStmt:
         - withClause
     tests:
         - select limit 1
-        - "SELECT "
+        - SELECT
         - select offset 1
-        - "SELECT "
+        - SELECT
         - select 1
-        - "SELECT "
+        - SELECT
         - select foo, bar
         - SELECT foo
         - select where true
-        - "SELECT "
+        - SELECT
         - select 1 from pg_database where foo
         - SELECT WHERE foo
         - select from foo union select from bar
@@ -592,7 +592,7 @@ SelectStmt:
         - select group by foo, bar
         - SELECT GROUP BY foo
         - values (1)
-        - "SELECT "
+        - SELECT
         - values(1), (moo), (foo)
         - VALUES (moo)
         - select from (values (moo)) sub
@@ -781,7 +781,7 @@ CompositeTypeStmt:
 CreateCastStmt:
     tests:
         - create cast (foo as bar) without function
-        - CREATE CAST (foo AS bar) WITHOUT FUNCTION
+        - CREATE CAST (foo AS bar)WITHOUT FUNCTION
 
 CreateConversionStmt:
     tests:
@@ -1035,7 +1035,7 @@ def reduce_step(state, path):
 
         # try replacing the node with NULL
         if 'try_null' in rule:
-            if try_reduce(state, path, pglast.ast.Null()): return True
+            if try_reduce(state, path, pglast.ast.A_Const(isnull=True)): return True
 
         # try removing some attribute
         if 'remove' in rule:
