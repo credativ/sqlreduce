@@ -1,0 +1,2 @@
+# Ignore version number diff in manpage
+extend-diff-ignore = "docs/sqlreduce.1"
