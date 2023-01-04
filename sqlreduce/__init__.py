@@ -787,7 +787,7 @@ CompositeTypeStmt:
 CreateCastStmt:
     tests:
         - create cast (foo as bar) without function
-        - CREATE CAST (foo AS bar)WITHOUT FUNCTION
+        - CREATE CAST (foo AS bar) WITHOUT FUNCTION
 
 CreateConversionStmt:
     tests:

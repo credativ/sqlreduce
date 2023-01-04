@@ -1,3 +1,10 @@
+sqlreduce (1.2-1) unstable; urgency=medium
+
+  * Update to pglast 5.0dev0+1. (The real 5.0dev0 release, what was uploaded
+    to Debian before was a git snapshot.)
+
+ -- Christoph Berg <myon@debian.org>  Wed, 04 Jan 2023 12:35:54 +0200
+
 sqlreduce (1.1-1) unstable; urgency=medium
 
   * Update to pglast 5.0dev0.
