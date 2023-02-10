@@ -28,7 +28,7 @@ def sqlreduce_main():
         query = args.file.read().rstrip()
 
     # check database connection
-    if not '=' in args.database:
+    if not '=' in args.database and not "postgres://" in args.database:
         args.database = f"dbname={args.database}"
     sqlreduce.check_connection(args.database)
 
