@@ -72,7 +72,7 @@ reproducer that developers can use to fix the problem.
 
 ## Reduce complexity with SQLreduce
 
-This issue is solved by [SQLreduce](https://github.com/credativ/sqlreduce).
+This issue is solved by [SQLreduce](https://github.com/df7cb/sqlreduce).
 SQLreduce takes as input an arbitrary SQL query which is then run against a
 PostgreSQL server. Various simplification steps are applied, checking after
 each step that the simplified query still triggers the same error from

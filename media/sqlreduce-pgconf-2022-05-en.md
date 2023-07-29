@@ -1,7 +1,7 @@
 ---
 title: "SQLreduce - Minimization of SQL Queries"
 subtitle: "Less is more"
-author: Christoph Berg \url{<christoph.berg@credativ.de>}
+author: Christoph Berg \url{<cb@df7cb.de>}
 date: "Leipzig, 13.5.2022"
 institute: credativ GmbH
 ---
@@ -97,7 +97,7 @@ FROM public.mlparted3 AS ref_0
 ## How do you get there?
 
 * SQLreduce
-  * \url{https://github.com/credativ/sqlreduce}
+  * \url{https://github.com/df7cb/sqlreduce}
 * based on pglast
   * PostgreSQL languages AST and statements prettifier
   * python module
@@ -347,7 +347,7 @@ SELECT
 FROM trigger_parted WHERE pg_trigger_depth() <> a ORDER BY a LIMIT 40
 ```
 
-## \url{https://github.com/credativ/sqlreduce}
+## \url{https://github.com/df7cb/sqlreduce}
 
 ![](sqlreduce.svg){ height=75% }
 

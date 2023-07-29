@@ -14,9 +14,9 @@ Build-Depends:
  python3-setuptools,
  python3-yaml,
 Standards-Version: 4.6.0
-Homepage: https://github.com/credativ/sqlreduce
-Vcs-Browser: https://github.com/credativ/sqlreduce
-Vcs-Git: https://github.com/credativ/sqlreduce.git
+Homepage: https://github.com/df7cb/sqlreduce
+Vcs-Browser: https://github.com/df7cb/sqlreduce
+Vcs-Git: https://github.com/df7cb/sqlreduce.git
 Testsuite: autopkgtest-pkg-python
 Rules-Requires-Root: no
 

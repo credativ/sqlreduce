@@ -73,7 +73,7 @@ reduzieren, der von Entwicklern benutzt werden kann, das Problem zu beheben.
 
 ## Komplexität reduzieren mit SQLreduce
 
-Dieses Problem wird von [SQLreduce](https://github.com/credativ/sqlreduce)
+Dieses Problem wird von [SQLreduce](https://github.com/df7cb/sqlreduce)
 gelöst. SQLreduce nimmt eine beliebige SQL-Query als Eingabe und lässt sie
 gegen einen PostgreSQL-Server laufen. Verschiedene Vereinfachungsschritte
 werden angewandt und nach jedem Schritt überprüft, ob die vereinfachte Query

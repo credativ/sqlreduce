@@ -1,2 +1,2 @@
 version=4
-https://github.com/credativ/sqlreduce/tags .*/v(.*).tar.gz
+https://github.com/df7cb/sqlreduce/tags .*/v(.*).tar.gz
