@@ -917,7 +917,7 @@ DropStmt:
 FetchStmt:
     tests:
         - fetch all in foo
-        - FETCH ALL foo
+        - FETCH FORWARD ALL FROM foo
 
 GrantStmt:
     tests:
