@@ -1,13 +1,13 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: pglast
-Source: https://github.com/lelit/pglast
+Upstream-Name: sqlreduce
+Source: https://github.com/df7cb/sqlreduce
 
 Files: *
-Copyright: © 2017, 2018, 2019, 2020, 2021 Lele Gaifax <lele@metapensiero.it>
+Copyright: Copyright (c) 2022-2024, PostgreSQL Global Development Group
 License: GPL-3+
 
 Files: debian/*
-Copyright: 2022 Christoph Berg <myon@debian.org>
+Copyright: 2022-2024 Christoph Berg <myon@debian.org>
 License: GPL-3+
 
 License: GPL-3+
