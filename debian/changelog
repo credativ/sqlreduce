@@ -1,3 +1,10 @@
+sqlreduce (1.5-1) unstable; urgency=medium
+
+  * pglast 8 switches from returningList to returningClause. Follow suit.
+    (Closes: #1143422)
+
+ -- Christoph Berg <myon@debian.org>  Sun, 02 Aug 2026 20:47:59 +0200
+
 sqlreduce (1.4-1) unstable; urgency=medium
 
   * Update tests to work with pglast 7.10. (Closes: #1120206)

@@ -8,7 +8,7 @@ Build-Depends:
  help2man <!cross>,
  postgresql <!nocheck>,
  python3-all,
- python3-pglast,
+ python3-pglast (>= 8),
  python3-psycopg2,
  python3-pytest,
  python3-setuptools,
@@ -25,6 +25,7 @@ Architecture: all
 Multi-Arch: foreign
 Depends:
  python3:any (>= 3.8),
+ python3-pglast (>= 8),
  ${misc:Depends},
  ${python3:Depends},
  ${shlibs:Depends},

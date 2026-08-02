@@ -333,11 +333,11 @@ DeleteStmt:
     descend:
         - whereClause
         - usingClause
-        - returningList
+        - returningClause
     remove:
         - whereClause
         - usingClause
-        - returningList
+        - returningClause
     tests:
         - delete from foo where bar
         - DELETE FROM foo
@@ -399,11 +399,11 @@ InsertStmt:
         - onConflictClause
         - cols
         - withClause
-        - returningList
+        - returningClause
     descend:
         - onConflictClause # special handling in reduce_step
         - withClause
-        - returningList
+        - returningClause
     tests:
         - insert into bar select from bar
         - SELECT FROM bar
@@ -539,6 +539,13 @@ ResTarget:
         - update foo set bar[2] = 1
         - UPDATE foo SET bar = NULL
 
+ReturningClause:
+    descend:
+        - exprs
+    tests:
+        - create table foo (); delete from foo returning moo + 1, bar
+        - CREATE TABLE foo (); DELETE FROM foo RETURNING moo
+
 RowExpr:
     pullup:
         - args
@@ -651,11 +658,11 @@ TypeCast:
 UpdateStmt:
     remove:
         - whereClause
-        - returningList
+        - returningClause
     descend:
         - whereClause
         - targetList
-        - returningList
+        - returningClause
     tests:
         - update foo set a=b, c=d
         - UPDATE foo SET c = NULL
