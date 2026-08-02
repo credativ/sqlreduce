@@ -9,6 +9,7 @@ import os
 import sys
 import yaml
 
+
 def getattr_path(obj, path):
     if path == []:
         return obj
@@ -17,36 +18,42 @@ def getattr_path(obj, path):
     else:
         return getattr_path(getattr(obj, path[0]), path[1:])
 
+
 def setattr_path(obj, path, node):
     if path == []:
         return node
     obj2 = deepcopy(obj)
     parent = getattr_path(obj2, path[:-1])
     if type(path[-1]) == int:
-        return setattr_path(obj2, path[:-1], parent[:path[-1]] + (node,) + parent[path[-1]+1:])
+        return setattr_path(
+            obj2, path[:-1], parent[: path[-1]] + (node,) + parent[path[-1] + 1 :]
+        )
     else:
         setattr(parent, path[-1], node)
     return obj2
+
 
 def run_query(state, query):
     # establish connection and wait for it to be ready
     while True:
         try:
-            conn = psycopg2.connect(state['database'], fallback_application_name='sqlreduce')
+            conn = psycopg2.connect(
+                state["database"], fallback_application_name="sqlreduce"
+            )
             cur = conn.cursor()
-            cur.execute("set statement_timeout = %s", (state['timeout'],))
+            cur.execute("set statement_timeout = %s", (state["timeout"],))
             break
         except Exception as e:
-            time.sleep(.2)
+            time.sleep(0.2)
 
-    error = 'no error'
+    error = "no error"
     try:
         cur.execute(query)
     except psycopg2.Error as e:
-        if state['use_sqlstate']:
+        if state["use_sqlstate"]:
             error = e.pgcode if e.pgcode else "CRASH"
         elif e.pgerror:
-            error = e.pgerror.partition('\n')[0]
+            error = e.pgerror.partition("\n")[0]
         else:
             error = str(e)
     except Exception as e:
@@ -57,53 +64,58 @@ def run_query(state, query):
         pass
     return error
 
+
 def check_connection(database):
-    conn = psycopg2.connect(database, fallback_application_name='sqlreduce')
+    conn = psycopg2.connect(database, fallback_application_name="sqlreduce")
     cur = conn.cursor()
-    cur.execute('select')
+    cur.execute("select")
     conn.close()
+
 
 def try_reduce(state, path, node):
     """In the currently best parse tree, replace path by given node and run query.
     Returns True when successful."""
 
-    parsetree2 = setattr_path(state['parsetree'], path, node)
+    parsetree2 = setattr_path(state["parsetree"], path, node)
 
-    if state['debug']:
+    if state["debug"]:
         print("Setting", path, "to", node)
         print(parsetree2)
     query = RawStream()(parsetree2)
-    state['called'] += 1
-    if query in state['seen']:
-        if state['debug']:
-            print('Query', query, 'was seen before, skipping\n')
+    state["called"] += 1
+    if query in state["seen"]:
+        if state["debug"]:
+            print("Query", query, "was seen before, skipping\n")
         return False
-    state['seen'].add(query)
-    if state['verbose']:
-        print(query, end='')
+    state["seen"].add(query)
+    if state["verbose"]:
+        print(query, end="")
 
     error = run_query(state, query)
     # if running the reduced query yields a different result, stop recursion here
-    if error != state['expected_error']:
-        if state['verbose']:
-            if state['terminal']:
+    if error != state["expected_error"]:
+        if state["verbose"]:
+            if state["terminal"]:
                 print(" \033[31m✘\033[0m", error)
             else:
                 print(" ✘", error)
-            if state['debug']: print()
+            if state["debug"]:
+                print()
         return False
 
     # found expected result
-    if state['verbose']:
-        if state['terminal']:
+    if state["verbose"]:
+        if state["terminal"]:
             print(" \033[32m✔\033[0m")
         else:
             print(" ✔")
-        if state['debug']: print()
+        if state["debug"]:
+            print()
 
-    state['parsetree'] = parsetree2
+    state["parsetree"] = parsetree2
 
     return True
+
 
 """
 rules_yaml: what to do when visiting a node type
@@ -979,6 +991,7 @@ VariableShowStmt:
 
 rules = yaml.safe_load(rules_yaml)
 
+
 def enumerate_paths(node, path=[]):
     """For a node, recursively enumerate all subpaths that are reduction targets"""
 
@@ -992,17 +1005,19 @@ def enumerate_paths(node, path=[]):
 
     if isinstance(node, tuple):
         for i in range(len(node)):
-            for p in enumerate_paths(node[i], path+[i]): yield p
+            for p in enumerate_paths(node[i], path + [i]):
+                yield p
 
     elif classname in rules:
         rule = rules[classname]
 
         # recurse into subnodes
-        for key in ('descend', 'pullup', 'replace'):
+        for key in ("descend", "pullup", "replace"):
             if key in rule:
                 for attr in rule[key]:
                     if subnode := getattr(node, attr):
-                        for p in enumerate_paths(subnode, path+[attr]): yield p
+                        for p in enumerate_paths(subnode, path + [attr]):
+                            yield p
 
     else:
         print("enumerate_paths: don't know what to do with the node at path", path)
@@ -1013,25 +1028,29 @@ def enumerate_paths(node, path=[]):
     if isinstance(node, pglast.ast.CallStmt):
         assert node.funccall
         if node.funccall.args:
-            for p in enumerate_paths(node.funccall.args, path+['funccall', 'args']): yield p
+            for p in enumerate_paths(node.funccall.args, path + ["funccall", "args"]):
+                yield p
 
     # RangeFunction.functions is ((FuncCall(), None), ...), go to inner node directly
     elif isinstance(node, pglast.ast.RangeFunction):
-        for i in range(len(node.functions)): # multiple entries for ROWS FROM (f, f)
+        for i in range(len(node.functions)):  # multiple entries for ROWS FROM (f, f)
             assert len(node.functions[i]) == 2
-            for p in enumerate_paths(node.functions[i][0], path+['functions', i, 0]): yield p
+            for p in enumerate_paths(node.functions[i][0], path + ["functions", i, 0]):
+                yield p
+
 
 def reduce_step(state, path):
     """Given a parse tree and a path, try to reduce the node at that path"""
 
-    node = getattr_path(state['parsetree'], path)
+    node = getattr_path(state["parsetree"], path)
     classname = type(node).__name__
 
     # we are looking at a tuple, try removing one tuple element
     if isinstance(node, tuple):
-        if len(node) > 1: # don't remove the only element
+        if len(node) > 1:  # don't remove the only element
             for i in range(len(node)):
-                if try_reduce(state, path, node[:i] + node[i+1:]): return True
+                if try_reduce(state, path, node[:i] + node[i + 1 :]):
+                    return True
 
     # we are looking at a class mentioned in rules_yaml
     elif classname in rules:
@@ -1039,59 +1058,79 @@ def reduce_step(state, path):
 
         # try running the subquery as new top-level query
         # TODO: try pulling up to intermediate levels?
-        if 'replace' in rule:
-            for attr in rule['replace']:
+        if "replace" in rule:
+            for attr in rule["replace"]:
                 if subnode := getattr(node, attr):
                     # leave top list of RawStmt in place
-                    assert path[1] == 'stmt'
-                    if try_reduce(state, path[:2], subnode): return True
+                    assert path[1] == "stmt"
+                    if try_reduce(state, path[:2], subnode):
+                        return True
 
         # try replacing the node with NULL
-        if 'try_null' in rule:
-            null = pglast.ast.Null() if hasattr(pglast.ast, 'Null') else pglast.ast.A_Const(isnull=True) # pglast 3.9 vs 5.0
-            if try_reduce(state, path, null): return True
+        if "try_null" in rule:
+            null = (
+                pglast.ast.Null()
+                if hasattr(pglast.ast, "Null")
+                else pglast.ast.A_Const(isnull=True)
+            )  # pglast 3.9 vs 5.0
+            if try_reduce(state, path, null):
+                return True
 
         # try removing some attribute
-        if 'remove' in rule:
-            for attr in rule['remove']:
-                if getattr_path(state['parsetree'], path+[attr]) is not None:
-                    if try_reduce(state, path+[attr], None): return True
+        if "remove" in rule:
+            for attr in rule["remove"]:
+                if getattr_path(state["parsetree"], path + [attr]) is not None:
+                    if try_reduce(state, path + [attr], None):
+                        return True
 
         # try pulling up subexpressions
-        if 'pullup' in rule:
-            for attr in rule['pullup']:
+        if "pullup" in rule:
+            for attr in rule["pullup"]:
                 if subnode := getattr(node, attr):
                     # if subnode is a tuple, pull up individual elements
                     if isinstance(subnode, tuple):
                         for subnodeelement in subnode:
-                            if try_reduce(state, path, subnodeelement): return True
+                            if try_reduce(state, path, subnodeelement):
+                                return True
                     else:
-                        if try_reduce(state, path, subnode): return True
+                        if try_reduce(state, path, subnode):
+                            return True
 
     else:
         print("reduce_step: don't know what to do with the node at path", path)
         print(node)
         print("Please submit this as a bug report")
-        if state['debug']:
-            raise Exception("reduce_step: don't know what to do with the node at path " + str(path))
+        if state["debug"]:
+            raise Exception(
+                "reduce_step: don't know what to do with the node at path " + str(path)
+            )
 
     # additional actions
 
     # case when foo then bar -> foo, bar
     if isinstance(node, pglast.ast.CaseExpr):
         for arg in node.args:
-            if try_reduce(state, path, arg.expr): return True
-            if try_reduce(state, path, arg.result): return True
+            if try_reduce(state, path, arg.expr):
+                return True
+            if try_reduce(state, path, arg.result):
+                return True
 
     # a JOIN b ON foo -> (SELECT foo) AS sub
     elif isinstance(node, pglast.ast.JoinExpr) and node.quals:
-        subselect = pglast.ast.RangeSubselect(subquery=pglast.ast.SelectStmt(targetList=(node.quals,)),
-                                              alias=pglast.ast.Alias('sub'))
-        if try_reduce(state, path, subselect): return True
+        subselect = pglast.ast.RangeSubselect(
+            subquery=pglast.ast.SelectStmt(targetList=(node.quals,)),
+            alias=pglast.ast.Alias("sub"),
+        )
+        if try_reduce(state, path, subselect):
+            return True
 
     # ON CONFLICT DO UPDATE -> DO NOTHING
-    elif isinstance(node, pglast.ast.OnConflictClause) and node.action == 2: # OnConflictAction.ONCONFLICT_UPDATE: 2
-        if try_reduce(state, path+['action'], 1): return True
+    elif (
+        isinstance(node, pglast.ast.OnConflictClause) and node.action == 2
+    ):  # OnConflictAction.ONCONFLICT_UPDATE: 2
+        if try_reduce(state, path + ["action"], 1):
+            return True
+
 
 def reduce_loop(state):
     """Try running reduce steps until no reduction is found"""
@@ -1101,12 +1140,15 @@ def reduce_loop(state):
         found = False
 
         # enumerate all places that might be reduced, and try running a step on them
-        for path in enumerate_paths(state['parsetree']):
+        for path in enumerate_paths(state["parsetree"]):
             if reduce_step(state, path):
                 found = True
                 break
 
-def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='500ms', debug=False):
+
+def run_reduce(
+    query, database="", verbose=False, use_sqlstate=False, timeout="500ms", debug=False
+):
     """Set up state object for running reduce steps"""
 
     # parse query
@@ -1115,46 +1157,53 @@ def run_reduce(query, database='', verbose=False, use_sqlstate=False, timeout='5
     regenerated_query = RawStream()(parsetree)
 
     state = {
-            'called': 0,
-            'database': database,
-            'debug': debug,
-            'parsetree': parsetree,
-            'regenerated_query': regenerated_query,
-            'seen': set(),
-            'terminal': sys.stdout.isatty() and os.environ.get('TERM') != 'dumb',
-            'timeout': timeout,
-            'use_sqlstate': use_sqlstate,
-            'verbose': verbose,
-            }
+        "called": 0,
+        "database": database,
+        "debug": debug,
+        "parsetree": parsetree,
+        "regenerated_query": regenerated_query,
+        "seen": set(),
+        "terminal": sys.stdout.isatty() and os.environ.get("TERM") != "dumb",
+        "timeout": timeout,
+        "use_sqlstate": use_sqlstate,
+        "verbose": verbose,
+    }
 
-    state['expected_error'] = run_query(state, query)
+    state["expected_error"] = run_query(state, query)
 
     if verbose:
         print("Input query:", query)
         print("Regenerated:", regenerated_query)
-        print("Query returns:", end=' ')
-        if state['terminal']:
+        print("Query returns:", end=" ")
+        if state["terminal"]:
             print(f"\033[32m✔\033[0m \033[1m{state['expected_error']}\033[0m")
         else:
-            print("✔", state['expected_error'])
-        if state['debug']:
-            print("Parse tree:", state['parsetree'])
+            print("✔", state["expected_error"])
+        if state["debug"]:
+            print("Parse tree:", state["parsetree"])
         print()
 
-    state['seen'].add(regenerated_query)
+    state["seen"].add(regenerated_query)
     regenerated_query_error = run_query(state, regenerated_query)
-    if state['expected_error'] != regenerated_query_error:
-        print("The original query and the parsed and regenerated query do not return the same result state.")
-        print("The query is either not stable, or we have found a parser/generator bug.")
+    if state["expected_error"] != regenerated_query_error:
+        print(
+            "The original query and the parsed and regenerated query do not return the same result state."
+        )
+        print(
+            "The query is either not stable, or we have found a parser/generator bug."
+        )
         print("We'll proceed anyway, but the result is probably bogus.")
         print("Regenerated query returns:", regenerated_query_error)
         print()
-        if state['debug']:
-            raise Exception("The original query and the parsed and regenerated query do not return the same result state.")
+        if state["debug"]:
+            raise Exception(
+                "The original query and the parsed and regenerated query do not return the same result state."
+            )
 
     reduce_loop(state)
 
-    return RawStream()(state['parsetree']), state
+    return RawStream()(state["parsetree"]), state
+
 
 if __name__ == "__main__":
     print(run_reduce("select 1, moo, 3"))

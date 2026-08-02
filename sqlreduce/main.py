@@ -7,9 +7,9 @@ import time
 from pglast.stream import IndentedStream
 import sqlreduce
 
-#from loguru import logger
-#@logger.catch
+
 def sqlreduce_main():
+    # fmt: off
     argparser = argparse.ArgumentParser(description="Reduce a SQL query to the minimal query throwing the same error")
     argparser.add_argument("-d", "--database", type=str, default="", help="Database or connection string to use")
     argparser.add_argument("-f", "--file", type=argparse.FileType('r'), default=sys.stdin, help="Read query from file [Default: stdin]")
@@ -18,47 +18,56 @@ def sqlreduce_main():
     argparser.add_argument("--debug", action='store_true')
     argparser.add_argument("query", nargs='*', help="Query to reduce to minimum")
     args = argparser.parse_args()
+    # fmt: on
 
-    if (args.file != sys.stdin and args.query):
+    if args.file != sys.stdin and args.query:
         raise Exception("Cannot use both -f and query arguments")
 
     if args.query:
-        query = ' '.join(args.query)
+        query = " ".join(args.query)
     else:
         query = args.file.read().rstrip()
 
     # check database connection
-    if not '=' in args.database:
+    if not "=" in args.database:
         args.database = f"dbname={args.database}"
     sqlreduce.check_connection(args.database)
 
     # reduce query
     start = time.time()
-    min_query, state = sqlreduce.run_reduce(query,
-            database=args.database,
-            verbose=True,
-            use_sqlstate=args.sqlstate,
-            timeout=args.timeout,
-            debug=args.debug,
-            )
+    min_query, state = sqlreduce.run_reduce(
+        query,
+        database=args.database,
+        verbose=True,
+        use_sqlstate=args.sqlstate,
+        timeout=args.timeout,
+        debug=args.debug,
+    )
     duration = time.time() - start
-    qps = len(state['seen']) / duration
+    qps = len(state["seen"]) / duration
 
     print()
     print("Minimal query yielding the same error:")
-    if state['terminal']:
+    if state["terminal"]:
         print("\033[1m", end="")
     print(min_query)
-    if state['terminal']:
+    if state["terminal"]:
         print("\033[0m", end="")
     print()
     print("Pretty-printed minimal query:")
-    print(IndentedStream(comma_at_eoln=True)(state['parsetree']))
+    print(IndentedStream(comma_at_eoln=True)(state["parsetree"]))
     print()
-    print("Seen:", len(state['seen']), "items,", sum([len(v) for v in state['seen']]), "Bytes")
-    print("Iterations:", state['called'])
+    print(
+        "Seen:",
+        len(state["seen"]),
+        "items,",
+        sum([len(v) for v in state["seen"]]),
+        "Bytes",
+    )
+    print("Iterations:", state["called"])
     print(f"Runtime: {duration:.3f} s, {qps:.1f} q/s")
-    #print(state)
+    # print(state)
+
 
 if __name__ == "__main__":
     sqlreduce_main()
