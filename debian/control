@@ -13,7 +13,7 @@ Build-Depends:
  python3-pytest,
  python3-setuptools,
  python3-yaml,
-Standards-Version: 4.6.0
+Standards-Version: 4.7.4
 Homepage: https://github.com/df7cb/sqlreduce
 Vcs-Browser: https://github.com/df7cb/sqlreduce
 Vcs-Git: https://github.com/df7cb/sqlreduce.git
